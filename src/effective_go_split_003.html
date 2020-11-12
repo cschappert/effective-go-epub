@@ -1,0 +1,102 @@
+<?xml version='1.0' encoding='utf-8'?>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+
+<head>
+  <title>Effective Go - The Go Programming Language</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <link href="stylesheet.css" rel="stylesheet" type="text/css" />
+  <link href="page_styles.css" rel="stylesheet" type="text/css" />
+</head>
+
+<body class="site">
+  <main id="page" class="site-content">
+    <div class="container">
+      <h2 id="formatting" class="calibre3">Formatting</h2>
+
+      <p class="calibre4">
+        Formatting issues are the most contentious
+        but the least consequential.
+        People can adapt to different formatting styles
+        but it's better if they don't have to, and
+        less time is devoted to the topic
+        if everyone adheres to the same style.
+        The problem is how to approach this Utopia without a long
+        prescriptive style guide.
+      </p>
+
+      <p class="calibre4">
+        With Go we take an unusual
+        approach and let the machine
+        take care of most formatting issues.
+        The <code class="calibre6">gofmt</code> program
+        (also available as <code class="calibre6">go fmt</code>, which
+        operates at the package level rather than source file level)
+        reads a Go program
+        and emits the source in a standard style of indentation
+        and vertical alignment, retaining and if necessary
+        reformatting comments.
+        If you want to know how to handle some new layout
+        situation, run <code class="calibre6">gofmt</code>; if the answer doesn't
+        seem right, rearrange your program (or file a bug about <code class="calibre6">gofmt</code>),
+        don't work around it.
+      </p>
+
+      <p class="calibre4">
+        As an example, there's no need to spend time lining up
+        the comments on the fields of a structure.
+        <code class="calibre6">Gofmt</code> will do that for you. Given the
+        declaration
+      </p>
+
+      <pre class="calibre7">type T struct {
+    name string // name of the object
+    value int // its value
+}
+</pre>
+
+      <p class="calibre4">
+        <code class="calibre6">gofmt</code> will line up the columns:
+      </p>
+
+      <pre class="calibre7">type T struct {
+    name    string // name of the object
+    value   int    // its value
+}
+</pre>
+
+      <p class="calibre4">
+        All Go code in the standard packages has been formatted with <code class="calibre6">gofmt</code>.
+      </p>
+
+
+      <p class="calibre4">
+        Some formatting details remain. Very briefly:
+      </p>
+
+      <dl class="calibre8">
+        <dt class="calibre2">Indentation</dt>
+        <dd class="calibre9">We use tabs for indentation and <code class="calibre10">gofmt</code> emits them by default.
+          Use spaces only if you must.
+        </dd>
+        <dt class="calibre2">Line length</dt>
+        <dd class="calibre9">
+          Go has no line length limit. Don't worry about overflowing a punched card.
+          If a line feels too long, wrap it and indent with an extra tab.
+        </dd>
+        <dt class="calibre2">Parentheses</dt>
+        <dd class="calibre9">
+          Go needs fewer parentheses than C and Java: control structures (<code class="calibre10">if</code>,
+          <code class="calibre10">for</code>, <code class="calibre10">switch</code>) do not have parentheses in
+          their syntax.
+          Also, the operator precedence hierarchy is shorter and clearer, so
+          <pre class="calibre11">x&lt;&lt;8 + y&lt;&lt;16
+</pre>
+          means what the spacing implies, unlike in the other languages.
+        </dd>
+      </dl>
+
+    </div>
+  </main>
+</body>
+
+</html>

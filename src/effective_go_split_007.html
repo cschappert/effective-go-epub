@@ -1,0 +1,393 @@
+<?xml version='1.0' encoding='utf-8'?>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+
+<head>
+    <title>Effective Go - The Go Programming Language</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <link href="stylesheet.css" rel="stylesheet" type="text/css" />
+    <link href="page_styles.css" rel="stylesheet" type="text/css" />
+</head>
+
+<body class="site">
+    <main id="page" class="site-content">
+        <div class="container">
+            <h2 id="control-structures" class="calibre3">Control structures</h2>
+
+            <p class="calibre4">
+                The control structures of Go are related to those of C but differ
+                in important ways.
+                There is no <code class="calibre6">do</code> or <code class="calibre6">while</code> loop, only a
+                slightly generalized
+                <code class="calibre6">for</code>;
+                <code class="calibre6">switch</code> is more flexible;
+                <code class="calibre6">if</code> and <code class="calibre6">switch</code> accept an optional
+                initialization statement like that of <code class="calibre6">for</code>;
+                <code class="calibre6">break</code> and <code class="calibre6">continue</code> statements
+                take an optional label to identify what to break or continue;
+                and there are new control structures including a type switch and a
+                multiway communications multiplexer, <code class="calibre6">select</code>.
+                The syntax is also slightly different:
+                there are no parentheses
+                and the bodies must always be brace-delimited.
+            </p>
+
+            <h3 id="if" class="calibre5">If</h3>
+
+            <p class="calibre4">
+                In Go a simple <code class="calibre6">if</code> looks like this:
+            </p>
+            <pre class="calibre7">if x &gt; 0 {
+    return y
+}
+</pre>
+
+            <p class="calibre4">
+                Mandatory braces encourage writing simple <code class="calibre6">if</code> statements
+                on multiple lines. It's good style to do so anyway,
+                especially when the body contains a control statement such as a
+                <code class="calibre6">return</code> or <code class="calibre6">break</code>.
+            </p>
+
+            <p class="calibre4">
+                Since <code class="calibre6">if</code> and <code class="calibre6">switch</code> accept an initialization
+                statement, it's common to see one used to set up a local variable.
+            </p>
+
+            <pre class="calibre7">if err := file.Chmod(0664); err != nil {
+    log.Print(err)
+    return err
+}
+</pre>
+
+            <p id="else" class="calibre4">
+                In the Go libraries, you'll find that
+                when an <code class="calibre6">if</code> statement doesn't flow into the next statement—that is,
+                the body ends in <code class="calibre6">break</code>, <code class="calibre6">continue</code>,
+                <code class="calibre6">goto</code>, or <code class="calibre6">return</code>—the unnecessary
+                <code class="calibre6">else</code> is omitted.
+            </p>
+
+            <pre class="calibre7">f, err := os.Open(name)
+if err != nil {
+    return err
+}
+codeUsing(f)
+</pre>
+
+            <p class="calibre4">
+                This is an example of a common situation where code must guard against a
+                sequence of error conditions. The code reads well if the
+                successful flow of control runs down the page, eliminating error cases
+                as they arise. Since error cases tend to end in <code class="calibre6">return</code>
+                statements, the resulting code needs no <code class="calibre6">else</code> statements.
+            </p>
+
+            <pre class="calibre7">f, err := os.Open(name)
+if err != nil {
+    return err
+}
+d, err := f.Stat()
+if err != nil {
+    f.Close()
+    return err
+}
+codeUsing(f, d)
+</pre>
+
+
+            <h3 id="redeclaration" class="calibre5">Redeclaration and reassignment</h3>
+
+            <p class="calibre4">
+                An aside: The last example in the previous section demonstrates a detail of how the
+                <code class="calibre6">:=</code> short declaration form works.
+                The declaration that calls <code class="calibre6">os.Open</code> reads,
+            </p>
+
+            <pre class="calibre7">f, err := os.Open(name)
+</pre>
+
+            <p class="calibre4">
+                This statement declares two variables, <code class="calibre6">f</code> and <code
+                    class="calibre6">err</code>.
+                A few lines later, the call to <code class="calibre6">f.Stat</code> reads,
+            </p>
+
+            <pre class="calibre7">d, err := f.Stat()
+</pre>
+
+            <p class="calibre4">
+                which looks as if it declares <code class="calibre6">d</code> and <code class="calibre6">err</code>.
+                Notice, though, that <code class="calibre6">err</code> appears in both statements.
+                This duplication is legal: <code class="calibre6">err</code> is declared by the first statement,
+                but only <em class="calibre12">re-assigned</em> in the second.
+                This means that the call to <code class="calibre6">f.Stat</code> uses the existing
+                <code class="calibre6">err</code> variable declared above, and just gives it a new value.
+            </p>
+
+            <p class="calibre4">
+                In a <code class="calibre6">:=</code> declaration a variable <code class="calibre6">v</code> may appear
+                even
+                if it has already been declared, provided:
+            </p>
+
+            <ul class="calibre13">
+                <li class="calibre14">this declaration is in the same scope as the existing declaration of <code
+                        class="calibre6">v</code>
+                    (if <code class="calibre6">v</code> is already declared in an outer scope, the declaration will
+                    create a new variable §),</li>
+                <li class="calibre14">the corresponding value in the initialization is assignable to <code
+                        class="calibre6">v</code>, and</li>
+                <li class="calibre14">there is at least one other variable that is created by the declaration.</li>
+            </ul>
+
+            <p class="calibre4">
+                This unusual property is pure pragmatism,
+                making it easy to use a single <code class="calibre6">err</code> value, for example,
+                in a long <code class="calibre6">if-else</code> chain.
+                You'll see it used often.
+            </p>
+
+            <p class="calibre4">
+                § It's worth noting here that in Go the scope of function parameters and return values
+                is the same as the function body, even though they appear lexically outside the braces
+                that enclose the body.
+            </p>
+
+            <h3 id="for" class="calibre5">For</h3>
+
+            <p class="calibre4">
+                The Go <code class="calibre6">for</code> loop is similar to—but not the same as—C's.
+                It unifies <code class="calibre6">for</code>
+                and <code class="calibre6">while</code> and there is no <code class="calibre6">do-while</code>.
+                There are three forms, only one of which has semicolons.
+            </p>
+            <pre class="calibre7">// Like a C for
+for init; condition; post { }
+
+// Like a C while
+for condition { }
+
+// Like a C for(;;)
+for { }
+</pre>
+
+            <p class="calibre4">
+                Short declarations make it easy to declare the index variable right in the loop.
+            </p>
+            <pre class="calibre7">sum := 0
+for i := 0; i &lt; 10; i++ {
+    sum += i
+}
+</pre>
+
+            <p class="calibre4">
+                If you're looping over an array, slice, string, or map,
+                or reading from a channel, a <code class="calibre6">range</code> clause can
+                manage the loop.
+            </p>
+            <pre class="calibre7">for key, value := range oldMap {
+    newMap[key] = value
+}
+</pre>
+
+            <p class="calibre4">
+                If you only need the first item in the range (the key or index), drop the second:
+            </p>
+            <pre class="calibre7">for key := range m {
+    if key.expired() {
+        delete(m, key)
+    }
+}
+</pre>
+
+            <p class="calibre4">
+                If you only need the second item in the range (the value), use the <em class="calibre12">blank
+                    identifier</em>, an underscore, to discard the first:
+            </p>
+            <pre class="calibre7">sum := 0
+for _, value := range array {
+    sum += value
+}
+</pre>
+
+            <p class="calibre4">
+                The blank identifier has many uses, as described in <a href="effective_go_split_013.html#blank"
+                    class="pcalibre calibre">a later section</a>.
+            </p>
+
+            <p class="calibre4">
+                For strings, the <code class="calibre6">range</code> does more work for you, breaking out individual
+                Unicode code points by parsing the UTF-8.
+                Erroneous encodings consume one byte and produce the
+                replacement rune U+FFFD.
+                (The name (with associated builtin type) <code class="calibre6">rune</code> is Go terminology for a
+                single Unicode code point.
+                See <a href="https://golang.org/ref/spec#Rune_literals" class="pcalibre calibre">the language
+                    specification</a>
+                for details.)
+                The loop
+            </p>
+            <pre class="calibre7">for pos, char := range "日本\x80語" { // \x80 is an illegal UTF-8 encoding
+    fmt.Printf("character %#U starts at byte position %d\n", char, pos)
+}
+</pre>
+            <p class="calibre4">
+                prints
+            </p>
+            <pre class="calibre7">character U+65E5 '日' starts at byte position 0
+character U+672C '本' starts at byte position 3
+character U+FFFD '�' starts at byte position 6
+character U+8A9E '語' starts at byte position 7
+</pre>
+
+            <p class="calibre4">
+                Finally, Go has no comma operator and <code class="calibre6">++</code> and <code
+                    class="calibre6">--</code>
+                are statements not expressions.
+                Thus if you want to run multiple variables in a <code class="calibre6">for</code>
+                you should use parallel assignment (although that precludes <code class="calibre6">++</code> and <code
+                    class="calibre6">--</code>).
+            </p>
+            <pre class="calibre7">// Reverse a
+for i, j := 0, len(a)-1; i &lt; j; i, j = i+1, j-1 {
+    a[i], a[j] = a[j], a[i]
+}
+</pre>
+
+            <h3 id="switch" class="calibre5">Switch</h3>
+
+            <p class="calibre4">
+                Go's <code class="calibre6">switch</code> is more general than C's.
+                The expressions need not be constants or even integers,
+                the cases are evaluated top to bottom until a match is found,
+                and if the <code class="calibre6">switch</code> has no expression it switches on
+                <code class="calibre6">true</code>.
+                It's therefore possible—and idiomatic—to write an
+                <code class="calibre6">if</code>-<code class="calibre6">else</code>-<code
+                    class="calibre6">if</code>-<code class="calibre6">else</code>
+                chain as a <code class="calibre6">switch</code>.
+            </p>
+
+            <pre class="calibre7">func unhex(c byte) byte {
+    switch {
+    case '0' &lt;= c &amp;&amp; c &lt;= '9':
+        return c - '0'
+    case 'a' &lt;= c &amp;&amp; c &lt;= 'f':
+        return c - 'a' + 10
+    case 'A' &lt;= c &amp;&amp; c &lt;= 'F':
+        return c - 'A' + 10
+    }
+    return 0
+}
+</pre>
+
+            <p class="calibre4">
+                There is no automatic fall through, but cases can be presented
+                in comma-separated lists.
+            </p>
+            <pre class="calibre7">func shouldEscape(c byte) bool {
+    switch c {
+    case ' ', '?', '&amp;', '=', '#', '+', '%':
+        return true
+    }
+    return false
+}
+</pre>
+
+            <p class="calibre4">
+                Although they are not nearly as common in Go as some other C-like
+                languages, <code class="calibre6">break</code> statements can be used to terminate
+                a <code class="calibre6">switch</code> early.
+                Sometimes, though, it's necessary to break out of a surrounding loop,
+                not the switch, and in Go that can be accomplished by putting a label
+                on the loop and "breaking" to that label.
+                This example shows both uses.
+            </p>
+
+            <pre class="calibre7">Loop:
+	for n := 0; n &lt; len(src); n += size {
+		switch {
+		case src[n] &lt; sizeOne:
+			if validateOnly {
+				break
+			}
+			size = 1
+			update(src[n])
+
+		case src[n] &lt; sizeTwo:
+			if n+1 &gt;= len(src) {
+				err = errShortInput
+				break Loop
+			}
+			if validateOnly {
+				break
+			}
+			size = 2
+			update(src[n] + src[n+1]&lt;&lt;shift)
+		}
+	}
+</pre>
+
+            <p class="calibre4">
+                Of course, the <code class="calibre6">continue</code> statement also accepts an optional label
+                but it applies only to loops.
+            </p>
+
+            <p class="calibre4">
+                To close this section, here's a comparison routine for byte slices that uses two
+                <code class="calibre6">switch</code> statements:
+            </p>
+            <pre class="calibre7">// Compare returns an integer comparing the two byte slices,
+// lexicographically.
+// The result will be 0 if a == b, -1 if a &lt; b, and +1 if a &gt; b
+func Compare(a, b []byte) int {
+    for i := 0; i &lt; len(a) &amp;&amp; i &lt; len(b); i++ {
+        switch {
+        case a[i] &gt; b[i]:
+            return 1
+        case a[i] &lt; b[i]:
+            return -1
+        }
+    }
+    switch {
+    case len(a) &gt; len(b):
+        return 1
+    case len(a) &lt; len(b):
+        return -1
+    }
+    return 0
+}
+</pre>
+
+            <h3 id="type_switch" class="calibre5">Type switch</h3>
+
+            <p class="calibre4">
+                A switch can also be used to discover the dynamic type of an interface
+                variable. Such a <em class="calibre12">type switch</em> uses the syntax of a type
+                assertion with the keyword <code class="calibre6">type</code> inside the parentheses.
+                If the switch declares a variable in the expression, the variable will
+                have the corresponding type in each clause.
+                It's also idiomatic to reuse the name in such cases, in effect declaring
+                a new variable with the same name but a different type in each case.
+            </p>
+            <pre class="calibre7">var t interface{}
+t = functionOfSomeType()
+switch t := t.(type) {
+default:
+    fmt.Printf("unexpected type %T\n", t)     // %T prints whatever type t has
+case bool:
+    fmt.Printf("boolean %t\n", t)             // t has type bool
+case int:
+    fmt.Printf("integer %d\n", t)             // t has type int
+case *bool:
+    fmt.Printf("pointer to boolean %t\n", *t) // t has type *bool
+case *int:
+    fmt.Printf("pointer to integer %d\n", *t) // t has type *int
+}
+</pre>
+
+        </div>
+    </main>
+</body>
+
+</html>

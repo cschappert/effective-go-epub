@@ -1,0 +1,151 @@
+<?xml version='1.0' encoding='utf-8'?>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+
+<head>
+  <title>Effective Go - The Go Programming Language</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <link href="stylesheet.css" rel="stylesheet" type="text/css" />
+  <link href="page_styles.css" rel="stylesheet" type="text/css" />
+</head>
+
+<body class="site">
+  <main id="page" class="site-content">
+    <div class="container">
+      <h2 id="names" class="calibre3">Names</h2>
+
+      <p class="calibre4">
+        Names are as important in Go as in any other language.
+        They even have semantic effect:
+        the visibility of a name outside a package is determined by whether its
+        first character is upper case.
+        It's therefore worth spending a little time talking about naming conventions
+        in Go programs.
+      </p>
+
+
+      <h3 id="package-names" class="calibre5">Package names</h3>
+
+      <p class="calibre4">
+        When a package is imported, the package name becomes an accessor for the
+        contents. After
+      </p>
+
+      <pre class="calibre7">import "bytes"
+</pre>
+
+      <p class="calibre4">
+        the importing package can talk about <code class="calibre6">bytes.Buffer</code>. It's
+        helpful if everyone using the package can use the same name to refer to
+        its contents, which implies that the package name should be good:
+        short, concise, evocative. By convention, packages are given
+        lower case, single-word names; there should be no need for underscores
+        or mixedCaps.
+        Err on the side of brevity, since everyone using your
+        package will be typing that name.
+        And don't worry about collisions <i class="calibre12">a priori</i>.
+        The package name is only the default name for imports; it need not be unique
+        across all source code, and in the rare case of a collision the
+        importing package can choose a different name to use locally.
+        In any case, confusion is rare because the file name in the import
+        determines just which package is being used.
+      </p>
+
+      <p class="calibre4">
+        Another convention is that the package name is the base name of
+        its source directory;
+        the package in <code class="calibre6">src/encoding/base64</code>
+        is imported as <code class="calibre6">"encoding/base64"</code> but has name <code
+          class="calibre6">base64</code>,
+        not <code class="calibre6">encoding_base64</code> and not <code class="calibre6">encodingBase64</code>.
+      </p>
+
+      <p class="calibre4">
+        The importer of a package will use the name to refer to its contents,
+        so exported names in the package can use that fact
+        to avoid stutter.
+        (Don't use the <code class="calibre6">import .</code> notation, which can simplify
+        tests that must run outside the package they are testing, but should otherwise be avoided.)
+        For instance, the buffered reader type in the <code class="calibre6">bufio</code> package is called <code
+          class="calibre6">Reader</code>,
+        not <code class="calibre6">BufReader</code>, because users see it as <code class="calibre6">bufio.Reader</code>,
+        which is a clear, concise name.
+        Moreover,
+        because imported entities are always addressed with their package name, <code
+          class="calibre6">bufio.Reader</code>
+        does not conflict with <code class="calibre6">io.Reader</code>.
+        Similarly, the function to make new instances of <code class="calibre6">ring.Ring</code>—which
+        is the definition of a <em class="calibre12">constructor</em> in Go—would
+        normally be called <code class="calibre6">NewRing</code>, but since
+        <code class="calibre6">Ring</code> is the only type exported by the package, and since the
+        package is called <code class="calibre6">ring</code>, it's called just <code class="calibre6">New</code>,
+        which clients of the package see as <code class="calibre6">ring.New</code>.
+        Use the package structure to help you choose good names.
+      </p>
+
+      <p class="calibre4">
+        Another short example is <code class="calibre6">once.Do</code>;
+        <code class="calibre6">once.Do(setup)</code> reads well and would not be improved by
+        writing <code class="calibre6">once.DoOrWaitUntilDone(setup)</code>.
+        Long names don't automatically make things more readable.
+        A helpful doc comment can often be more valuable than an extra long name.
+      </p>
+
+      <h3 id="Getters" class="calibre5">Getters</h3>
+
+      <p class="calibre4">
+        Go doesn't provide automatic support for getters and setters.
+        There's nothing wrong with providing getters and setters yourself,
+        and it's often appropriate to do so, but it's neither idiomatic nor necessary
+        to put <code class="calibre6">Get</code> into the getter's name. If you have a field called
+        <code class="calibre6">owner</code> (lower case, unexported), the getter method should be
+        called <code class="calibre6">Owner</code> (upper case, exported), not <code class="calibre6">GetOwner</code>.
+        The use of upper-case names for export provides the hook to discriminate
+        the field from the method.
+        A setter function, if needed, will likely be called <code class="calibre6">SetOwner</code>.
+        Both names read well in practice:
+      </p>
+      <pre class="calibre7">owner := obj.Owner()
+if owner != user {
+    obj.SetOwner(user)
+}
+</pre>
+
+      <h3 id="interface-names" class="calibre5">Interface names</h3>
+
+      <p class="calibre4">
+        By convention, one-method interfaces are named by
+        the method name plus an -er suffix or similar modification
+        to construct an agent noun: <code class="calibre6">Reader</code>,
+        <code class="calibre6">Writer</code>, <code class="calibre6">Formatter</code>,
+        <code class="calibre6">CloseNotifier</code> etc.
+      </p>
+
+      <p class="calibre4">
+        There are a number of such names and it's productive to honor them and the function
+        names they capture.
+        <code class="calibre6">Read</code>, <code class="calibre6">Write</code>, <code class="calibre6">Close</code>,
+        <code class="calibre6">Flush</code>,
+        <code class="calibre6">String</code> and so on have
+        canonical signatures and meanings. To avoid confusion,
+        don't give your method one of those names unless it
+        has the same signature and meaning.
+        Conversely, if your type implements a method with the
+        same meaning as a method on a well-known type,
+        give it the same name and signature;
+        call your string-converter method <code class="calibre6">String</code> not <code
+          class="calibre6">ToString</code>.
+      </p>
+
+      <h3 id="mixed-caps" class="calibre5">MixedCaps</h3>
+
+      <p class="calibre4">
+        Finally, the convention in Go is to use <code class="calibre6">MixedCaps</code>
+        or <code class="calibre6">mixedCaps</code> rather than underscores to write
+        multiword names.
+      </p>
+
+    </div>
+  </main>
+</body>
+
+</html>

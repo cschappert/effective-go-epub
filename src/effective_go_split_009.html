@@ -1,0 +1,780 @@
+<?xml version='1.0' encoding='utf-8'?>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+
+<head>
+    <title>Effective Go - The Go Programming Language</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <link href="stylesheet.css" rel="stylesheet" type="text/css" />
+    <link href="page_styles.css" rel="stylesheet" type="text/css" />
+</head>
+
+<body class="site">
+    <main id="page" class="site-content">
+        <div class="container">
+            <h2 id="data" class="calibre3">Data</h2>
+
+            <h3 id="allocation_new" class="calibre5">Allocation with <code class="calibre15">new</code></h3>
+
+            <p class="calibre4">
+                Go has two allocation primitives, the built-in functions
+                <code class="calibre6">new</code> and <code class="calibre6">make</code>.
+                They do different things and apply to different types, which can be confusing,
+                but the rules are simple.
+                Let's talk about <code class="calibre6">new</code> first.
+                It's a built-in function that allocates memory, but unlike its namesakes
+                in some other languages it does not <em class="calibre12">initialize</em> the memory,
+                it only <em class="calibre12">zeros</em> it.
+                That is,
+                <code class="calibre6">new(T)</code> allocates zeroed storage for a new item of type
+                <code class="calibre6">T</code> and returns its address, a value of type <code
+                    class="calibre6">*T</code>.
+                In Go terminology, it returns a pointer to a newly allocated zero value of type
+                <code class="calibre6">T</code>.
+            </p>
+
+            <p class="calibre4">
+                Since the memory returned by <code class="calibre6">new</code> is zeroed, it's helpful to arrange
+                when designing your data structures that the
+                zero value of each type can be used without further initialization. This means a user of
+                the data structure can create one with <code class="calibre6">new</code> and get right to
+                work.
+                For example, the documentation for <code class="calibre6">bytes.Buffer</code> states that
+                "the zero value for <code class="calibre6">Buffer</code> is an empty buffer ready to use."
+                Similarly, <code class="calibre6">sync.Mutex</code> does not
+                have an explicit constructor or <code class="calibre6">Init</code> method.
+                Instead, the zero value for a <code class="calibre6">sync.Mutex</code>
+                is defined to be an unlocked mutex.
+            </p>
+
+            <p class="calibre4">
+                The zero-value-is-useful property works transitively. Consider this type declaration.
+            </p>
+
+            <pre class="calibre7">type SyncedBuffer struct {
+    lock    sync.Mutex
+    buffer  bytes.Buffer
+}
+</pre>
+
+            <p class="calibre4">
+                Values of type <code class="calibre6">SyncedBuffer</code> are also ready to use immediately upon
+                allocation
+                or just declaration. In the next snippet, both <code class="calibre6">p</code> and <code
+                    class="calibre6">v</code> will work
+                correctly without further arrangement.
+            </p>
+
+            <pre class="calibre7">p := new(SyncedBuffer)  // type *SyncedBuffer
+var v SyncedBuffer      // type  SyncedBuffer
+</pre>
+
+            <h3 id="composite_literals" class="calibre5">Constructors and composite literals</h3>
+
+            <p class="calibre4">
+                Sometimes the zero value isn't good enough and an initializing
+                constructor is necessary, as in this example derived from
+                package <code class="calibre6">os</code>.
+            </p>
+
+            <pre class="calibre7">func NewFile(fd int, name string) *File {
+    if fd &lt; 0 {
+        return nil
+    }
+    f := new(File)
+    f.fd = fd
+    f.name = name
+    f.dirinfo = nil
+    f.nepipe = 0
+    return f
+}
+</pre>
+
+            <p class="calibre4">
+                There's a lot of boiler plate in there. We can simplify it
+                using a <i class="calibre12">composite literal</i>, which is
+                an expression that creates a
+                new instance each time it is evaluated.
+            </p>
+
+            <pre class="calibre7">func NewFile(fd int, name string) *File {
+    if fd &lt; 0 {
+        return nil
+    }
+    f := File{fd, name, nil, 0}
+    return &amp;f
+}
+</pre>
+
+            <p class="calibre4">
+                Note that, unlike in C, it's perfectly OK to return the address of a local variable;
+                the storage associated with the variable survives after the function
+                returns.
+                In fact, taking the address of a composite literal
+                allocates a fresh instance each time it is evaluated,
+                so we can combine these last two lines.
+            </p>
+
+            <pre class="calibre7">    return &amp;File{fd, name, nil, 0}
+</pre>
+
+            <p class="calibre4">
+                The fields of a composite literal are laid out in order and must all be present.
+                However, by labeling the elements explicitly as <i class="calibre12">field</i><code
+                    class="calibre6">:</code><i class="calibre12">value</i>
+                pairs, the initializers can appear in any
+                order, with the missing ones left as their respective zero values. Thus we could say
+            </p>
+
+            <pre class="calibre7">    return &amp;File{fd: fd, name: name}
+</pre>
+
+            <p class="calibre4">
+                As a limiting case, if a composite literal contains no fields at all, it creates
+                a zero value for the type. The expressions <code class="calibre6">new(File)</code> and <code
+                    class="calibre6">&amp;File{}</code> are equivalent.
+            </p>
+
+            <p class="calibre4">
+                Composite literals can also be created for arrays, slices, and maps,
+                with the field labels being indices or map keys as appropriate.
+                In these examples, the initializations work regardless of the values of <code
+                    class="calibre6">Enone</code>,
+                <code class="calibre6">Eio</code>, and <code class="calibre6">Einval</code>, as long as they are
+                distinct.
+            </p>
+
+            <pre class="calibre7">a := [...]string   {Enone: "no error", Eio: "Eio", Einval: "invalid argument"}
+s := []string      {Enone: "no error", Eio: "Eio", Einval: "invalid argument"}
+m := map[int]string{Enone: "no error", Eio: "Eio", Einval: "invalid argument"}
+</pre>
+
+            <h3 id="allocation_make" class="calibre5">Allocation with <code class="calibre15">make</code></h3>
+
+            <p class="calibre4">
+                Back to allocation.
+                The built-in function <code class="calibre6">make(T, </code><i class="calibre12">args</i><code
+                    class="calibre6">)</code> serves
+                a purpose different from <code class="calibre6">new(T)</code>.
+                It creates slices, maps, and channels only, and it returns an <em class="calibre12">initialized</em>
+                (not <em class="calibre12">zeroed</em>)
+                value of type <code class="calibre6">T</code> (not <code class="calibre6">*T</code>).
+                The reason for the distinction
+                is that these three types represent, under the covers, references to data structures that
+                must be initialized before use.
+                A slice, for example, is a three-item descriptor
+                containing a pointer to the data (inside an array), the length, and the
+                capacity, and until those items are initialized, the slice is <code class="calibre6">nil</code>.
+                For slices, maps, and channels,
+                <code class="calibre6">make</code> initializes the internal data structure and prepares
+                the value for use.
+                For instance,
+            </p>
+
+            <pre class="calibre7">make([]int, 10, 100)
+</pre>
+
+            <p class="calibre4">
+                allocates an array of 100 ints and then creates a slice
+                structure with length 10 and a capacity of 100 pointing at the first
+                10 elements of the array.
+                (When making a slice, the capacity can be omitted; see the section on slices
+                for more information.)
+                In contrast, <code class="calibre6">new([]int)</code> returns a pointer to a newly allocated, zeroed
+                slice
+                structure, that is, a pointer to a <code class="calibre6">nil</code> slice value.
+            </p>
+
+            <p class="calibre4">
+                These examples illustrate the difference between <code class="calibre6">new</code> and
+                <code class="calibre6">make</code>.
+            </p>
+
+            <pre class="calibre7">var p *[]int = new([]int)       // allocates slice structure; *p == nil; rarely useful
+var v  []int = make([]int, 100) // the slice v now refers to a new array of 100 ints
+
+// Unnecessarily complex:
+var p *[]int = new([]int)
+*p = make([]int, 100, 100)
+
+// Idiomatic:
+v := make([]int, 100)
+</pre>
+
+            <p class="calibre4">
+                Remember that <code class="calibre6">make</code> applies only to maps, slices and channels
+                and does not return a pointer.
+                To obtain an explicit pointer allocate with <code class="calibre6">new</code> or take the address
+                of a variable explicitly.
+            </p>
+
+            <h3 id="arrays" class="calibre5">Arrays</h3>
+
+            <p class="calibre4">
+                Arrays are useful when planning the detailed layout of memory and sometimes
+                can help avoid allocation, but primarily
+                they are a building block for slices, the subject of the next section.
+                To lay the foundation for that topic, here are a few words about arrays.
+            </p>
+
+            <p class="calibre4">
+                There are major differences between the ways arrays work in Go and C.
+                In Go,
+            </p>
+            <ul class="calibre13">
+                <li class="calibre14">
+                    Arrays are values. Assigning one array to another copies all the elements.
+                </li>
+                <li class="calibre14">
+                    In particular, if you pass an array to a function, it
+                    will receive a <i class="calibre12">copy</i> of the array, not a pointer to it.
+                </li>
+                <li class="calibre14">
+                    The size of an array is part of its type. The types <code class="calibre6">[10]int</code>
+                    and <code class="calibre6">[20]int</code> are distinct.
+                </li>
+            </ul>
+
+            <p class="calibre4">
+                The value property can be useful but also expensive; if you want C-like behavior and efficiency,
+                you can pass a pointer to the array.
+            </p>
+
+            <pre class="calibre7">func Sum(a *[3]float64) (sum float64) {
+    for _, v := range *a {
+        sum += v
+    }
+    return
+}
+
+array := [...]float64{7.0, 8.5, 9.1}
+x := Sum(&amp;array)  // Note the explicit address-of operator
+</pre>
+
+            <p class="calibre4">
+                But even this style isn't idiomatic Go.
+                Use slices instead.
+            </p>
+
+            <h3 id="slices" class="calibre5">Slices</h3>
+
+            <p class="calibre4">
+                Slices wrap arrays to give a more general, powerful, and convenient
+                interface to sequences of data. Except for items with explicit
+                dimension such as transformation matrices, most array programming in
+                Go is done with slices rather than simple arrays.
+            </p>
+            <p class="calibre4">
+                Slices hold references to an underlying array, and if you assign one
+                slice to another, both refer to the same array.
+                If a function takes a slice argument, changes it makes to
+                the elements of the slice will be visible to the caller, analogous to
+                passing a pointer to the underlying array. A <code class="calibre6">Read</code>
+                function can therefore accept a slice argument rather than a pointer
+                and a count; the length within the slice sets an upper
+                limit of how much data to read. Here is the signature of the
+                <code class="calibre6">Read</code> method of the <code class="calibre6">File</code> type in package
+                <code class="calibre6">os</code>:
+            </p>
+            <pre class="calibre7">func (f *File) Read(buf []byte) (n int, err error)
+</pre>
+            <p class="calibre4">
+                The method returns the number of bytes read and an error value, if
+                any.
+                To read into the first 32 bytes of a larger buffer
+                <code class="calibre6">buf</code>, <i class="calibre12">slice</i> (here used as a verb) the buffer.
+            </p>
+            <pre class="calibre7">    n, err := f.Read(buf[0:32])
+</pre>
+            <p class="calibre4">
+                Such slicing is common and efficient. In fact, leaving efficiency aside for
+                the moment, the following snippet would also read the first 32 bytes of the buffer.
+            </p>
+            <pre class="calibre7">    var n int
+    var err error
+    for i := 0; i &lt; 32; i++ {
+        nbytes, e := f.Read(buf[i:i+1])  // Read one byte.
+        n += nbytes
+        if nbytes == 0 || e != nil {
+            err = e
+            break
+        }
+    }
+</pre>
+            <p class="calibre4">
+                The length of a slice may be changed as long as it still fits within
+                the limits of the underlying array; just assign it to a slice of
+                itself. The <i class="calibre12">capacity</i> of a slice, accessible by the built-in
+                function <code class="calibre6">cap</code>, reports the maximum length the slice may
+                assume. Here is a function to append data to a slice. If the data
+                exceeds the capacity, the slice is reallocated. The
+                resulting slice is returned. The function uses the fact that
+                <code class="calibre6">len</code> and <code class="calibre6">cap</code> are legal when applied to the
+                <code class="calibre6">nil</code> slice, and return 0.
+            </p>
+            <pre class="calibre7">func Append(slice, data []byte) []byte {
+    l := len(slice)
+    if l + len(data) &gt; cap(slice) {  // reallocate
+        // Allocate double what's needed, for future growth.
+        newSlice := make([]byte, (l+len(data))*2)
+        // The copy function is predeclared and works for any slice type.
+        copy(newSlice, slice)
+        slice = newSlice
+    }
+    slice = slice[0:l+len(data)]
+    copy(slice[l:], data)
+    return slice
+}
+</pre>
+            <p class="calibre4">
+                We must return the slice afterwards because, although <code class="calibre6">Append</code>
+                can modify the elements of <code class="calibre6">slice</code>, the slice itself (the run-time data
+                structure holding the pointer, length, and capacity) is passed by value.
+            </p>
+
+            <p class="calibre4">
+                The idea of appending to a slice is so useful it's captured by the
+                <code class="calibre6">append</code> built-in function. To understand that function's
+                design, though, we need a little more information, so we'll return
+                to it later.
+            </p>
+
+            <h3 id="two_dimensional_slices" class="calibre5">Two-dimensional slices</h3>
+
+            <p class="calibre4">
+                Go's arrays and slices are one-dimensional.
+                To create the equivalent of a 2D array or slice, it is necessary to define an array-of-arrays
+                or slice-of-slices, like this:
+            </p>
+
+            <pre class="calibre7">type Transform [3][3]float64  // A 3x3 array, really an array of arrays.
+type LinesOfText [][]byte     // A slice of byte slices.
+</pre>
+
+            <p class="calibre4">
+                Because slices are variable-length, it is possible to have each inner
+                slice be a different length.
+                That can be a common situation, as in our <code class="calibre6">LinesOfText</code>
+                example: each line has an independent length.
+            </p>
+
+            <pre class="calibre7">text := LinesOfText{
+	[]byte("Now is the time"),
+	[]byte("for all good gophers"),
+	[]byte("to bring some fun to the party."),
+}
+</pre>
+
+            <p class="calibre4">
+                Sometimes it's necessary to allocate a 2D slice, a situation that can arise when
+                processing scan lines of pixels, for instance.
+                There are two ways to achieve this.
+                One is to allocate each slice independently; the other
+                is to allocate a single array and point the individual slices into it.
+                Which to use depends on your application.
+                If the slices might grow or shrink, they should be allocated independently
+                to avoid overwriting the next line; if not, it can be more efficient to construct
+                the object with a single allocation.
+                For reference, here are sketches of the two methods.
+                First, a line at a time:
+            </p>
+
+            <pre class="calibre7">// Allocate the top-level slice.
+picture := make([][]uint8, YSize) // One row per unit of y.
+// Loop over the rows, allocating the slice for each row.
+for i := range picture {
+	picture[i] = make([]uint8, XSize)
+}
+</pre>
+
+            <p class="calibre4">
+                And now as one allocation, sliced into lines:
+            </p>
+
+            <pre class="calibre7">// Allocate the top-level slice, the same as before.
+picture := make([][]uint8, YSize) // One row per unit of y.
+// Allocate one large slice to hold all the pixels.
+pixels := make([]uint8, XSize*YSize) // Has type []uint8 even though picture is [][]uint8.
+// Loop over the rows, slicing each row from the front of the remaining pixels slice.
+for i := range picture {
+	picture[i], pixels = pixels[:XSize], pixels[XSize:]
+}
+</pre>
+
+            <h3 id="maps" class="calibre5">Maps</h3>
+
+            <p class="calibre4">
+                Maps are a convenient and powerful built-in data structure that associate
+                values of one type (the <em class="calibre12">key</em>) with values of another type
+                (the <em class="calibre12">element</em> or <em class="calibre12">value</em>).
+                The key can be of any type for which the equality operator is defined,
+                such as integers,
+                floating point and complex numbers,
+                strings, pointers, interfaces (as long as the dynamic type
+                supports equality), structs and arrays.
+                Slices cannot be used as map keys,
+                because equality is not defined on them.
+                Like slices, maps hold references to an underlying data structure.
+                If you pass a map to a function
+                that changes the contents of the map, the changes will be visible
+                in the caller.
+            </p>
+            <p class="calibre4">
+                Maps can be constructed using the usual composite literal syntax
+                with colon-separated key-value pairs,
+                so it's easy to build them during initialization.
+            </p>
+            <pre class="calibre7">var timeZone = map[string]int{
+    "UTC":  0*60*60,
+    "EST": -5*60*60,
+    "CST": -6*60*60,
+    "MST": -7*60*60,
+    "PST": -8*60*60,
+}
+</pre>
+            <p class="calibre4">
+                Assigning and fetching map values looks syntactically just like
+                doing the same for arrays and slices except that the index doesn't
+                need to be an integer.
+            </p>
+            <pre class="calibre7">offset := timeZone["EST"]
+</pre>
+            <p class="calibre4">
+                An attempt to fetch a map value with a key that
+                is not present in the map will return the zero value for the type
+                of the entries
+                in the map. For instance, if the map contains integers, looking
+                up a non-existent key will return <code class="calibre6">0</code>.
+                A set can be implemented as a map with value type <code class="calibre6">bool</code>.
+                Set the map entry to <code class="calibre6">true</code> to put the value in the set, and then
+                test it by simple indexing.
+            </p>
+            <pre class="calibre7">attended := map[string]bool{
+    "Ann": true,
+    "Joe": true,
+    ...
+}
+
+if attended[person] { // will be false if person is not in the map
+    fmt.Println(person, "was at the meeting")
+}
+</pre>
+            <p class="calibre4">
+                Sometimes you need to distinguish a missing entry from
+                a zero value. Is there an entry for <code class="calibre6">"UTC"</code>
+                or is that 0 because it's not in the map at all?
+                You can discriminate with a form of multiple assignment.
+            </p>
+            <pre class="calibre7">var seconds int
+var ok bool
+seconds, ok = timeZone[tz]
+</pre>
+            <p class="calibre4">
+                For obvious reasons this is called the “comma ok” idiom.
+                In this example, if <code class="calibre6">tz</code> is present, <code class="calibre6">seconds</code>
+                will be set appropriately and <code class="calibre6">ok</code> will be true; if not,
+                <code class="calibre6">seconds</code> will be set to zero and <code class="calibre6">ok</code> will
+                be false.
+                Here's a function that puts it together with a nice error report:
+            </p>
+            <pre class="calibre7">func offset(tz string) int {
+    if seconds, ok := timeZone[tz]; ok {
+        return seconds
+    }
+    log.Println("unknown time zone:", tz)
+    return 0
+}
+</pre>
+            <p class="calibre4">
+                To test for presence in the map without worrying about the actual value,
+                you can use the <a href="effective_go_split_013.html#blank" class="pcalibre calibre">blank
+                    identifier</a> (<code class="calibre6">_</code>)
+                in place of the usual variable for the value.
+            </p>
+            <pre class="calibre7">_, present := timeZone[tz]
+</pre>
+            <p class="calibre4">
+                To delete a map entry, use the <code class="calibre6">delete</code>
+                built-in function, whose arguments are the map and the key to be deleted.
+                It's safe to do this even if the key is already absent
+                from the map.
+            </p>
+            <pre class="calibre7">delete(timeZone, "PDT")  // Now on Standard Time
+</pre>
+
+            <h3 id="printing" class="calibre5">Printing</h3>
+
+            <p class="calibre4">
+                Formatted printing in Go uses a style similar to C's <code class="calibre6">printf</code>
+                family but is richer and more general. The functions live in the <code class="calibre6">fmt</code>
+                package and have capitalized names: <code class="calibre6">fmt.Printf</code>, <code
+                    class="calibre6">fmt.Fprintf</code>,
+                <code class="calibre6">fmt.Sprintf</code> and so on. The string functions (<code
+                    class="calibre6">Sprintf</code> etc.)
+                return a string rather than filling in a provided buffer.
+            </p>
+            <p class="calibre4">
+                You don't need to provide a format string. For each of <code class="calibre6">Printf</code>,
+                <code class="calibre6">Fprintf</code> and <code class="calibre6">Sprintf</code> there is another pair
+                of functions, for instance <code class="calibre6">Print</code> and <code
+                    class="calibre6">Println</code>.
+                These functions do not take a format string but instead generate a default
+                format for each argument. The <code class="calibre6">Println</code> versions also insert a blank
+                between arguments and append a newline to the output while
+                the <code class="calibre6">Print</code> versions add blanks only if the operand on neither side is a
+                string.
+                In this example each line produces the same output.
+            </p>
+            <pre class="calibre7">fmt.Printf("Hello %d\n", 23)
+fmt.Fprint(os.Stdout, "Hello ", 23, "\n")
+fmt.Println("Hello", 23)
+fmt.Println(fmt.Sprint("Hello ", 23))
+</pre>
+            <p class="calibre4">
+                The formatted print functions <code class="calibre6">fmt.Fprint</code>
+                and friends take as a first argument any object
+                that implements the <code class="calibre6">io.Writer</code> interface; the variables <code
+                    class="calibre6">os.Stdout</code>
+                and <code class="calibre6">os.Stderr</code> are familiar instances.
+            </p>
+            <p class="calibre4">
+                Here things start to diverge from C. First, the numeric formats such as <code class="calibre6">%d</code>
+                do not take flags for signedness or size; instead, the printing routines use the
+                type of the argument to decide these properties.
+            </p>
+            <pre class="calibre7">var x uint64 = 1&lt;&lt;64 - 1
+fmt.Printf("%d %x; %d %x\n", x, x, int64(x), int64(x))
+</pre>
+            <p class="calibre4">
+                prints
+            </p>
+            <pre class="calibre7">18446744073709551615 ffffffffffffffff; -1 -1
+</pre>
+            <p class="calibre4">
+                If you just want the default conversion, such as decimal for integers, you can use
+                the catchall format <code class="calibre6">%v</code> (for “value”); the result is exactly
+                what <code class="calibre6">Print</code> and <code class="calibre6">Println</code> would produce.
+                Moreover, that format can print <em class="calibre12">any</em> value, even arrays, slices, structs, and
+                maps. Here is a print statement for the time zone map defined in the previous section.
+            </p>
+            <pre class="calibre7">fmt.Printf("%v\n", timeZone)  // or just fmt.Println(timeZone)
+</pre>
+            <p class="calibre4">
+                which gives output:
+            </p>
+            <pre class="calibre7">map[CST:-21600 EST:-18000 MST:-25200 PST:-28800 UTC:0]
+</pre>
+            <p class="calibre4">
+                For maps, <code class="calibre6">Printf</code> and friends sort the output lexicographically by key.
+            </p>
+            <p class="calibre4">
+                When printing a struct, the modified format <code class="calibre6">%+v</code> annotates the
+                fields of the structure with their names, and for any value the alternate
+                format <code class="calibre6">%#v</code> prints the value in full Go syntax.
+            </p>
+            <pre class="calibre7">type T struct {
+    a int
+    b float64
+    c string
+}
+t := &amp;T{ 7, -2.35, "abc\tdef" }
+fmt.Printf("%v\n", t)
+fmt.Printf("%+v\n", t)
+fmt.Printf("%#v\n", t)
+fmt.Printf("%#v\n", timeZone)
+</pre>
+            <p class="calibre4">
+                prints
+            </p>
+            <pre class="calibre7">&amp;{7 -2.35 abc   def}
+&amp;{a:7 b:-2.35 c:abc     def}
+&amp;main.T{a:7, b:-2.35, c:"abc\tdef"}
+map[string]int{"CST":-21600, "EST":-18000, "MST":-25200, "PST":-28800, "UTC":0}
+</pre>
+            <p class="calibre4">
+                (Note the ampersands.)
+                That quoted string format is also available through <code class="calibre6">%q</code> when
+                applied to a value of type <code class="calibre6">string</code> or <code class="calibre6">[]byte</code>.
+                The alternate format <code class="calibre6">%#q</code> will use backquotes instead if possible.
+                (The <code class="calibre6">%q</code> format also applies to integers and runes, producing a
+                single-quoted rune constant.)
+                Also, <code class="calibre6">%x</code> works on strings, byte arrays and byte slices as well as
+                on integers, generating a long hexadecimal string, and with
+                a space in the format (<code class="calibre6">% x</code>) it puts spaces between the bytes.
+            </p>
+            <p class="calibre4">
+                Another handy format is <code class="calibre6">%T</code>, which prints the <em
+                    class="calibre12">type</em> of a value.
+            </p>
+            <pre class="calibre7">fmt.Printf("%T\n", timeZone)
+</pre>
+            <p class="calibre4">
+                prints
+            </p>
+            <pre class="calibre7">map[string]int
+</pre>
+            <p class="calibre4">
+                If you want to control the default format for a custom type, all that's required is to define
+                a method with the signature <code class="calibre6">String() string</code> on the type.
+                For our simple type <code class="calibre6">T</code>, that might look like this.
+            </p>
+            <pre class="calibre7">func (t *T) String() string {
+    return fmt.Sprintf("%d/%g/%q", t.a, t.b, t.c)
+}
+fmt.Printf("%v\n", t)
+</pre>
+            <p class="calibre4">
+                to print in the format
+            </p>
+            <pre class="calibre7">7/-2.35/"abc\tdef"
+</pre>
+            <p class="calibre4">
+                (If you need to print <em class="calibre12">values</em> of type <code class="calibre6">T</code> as well
+                as pointers to <code class="calibre6">T</code>,
+                the receiver for <code class="calibre6">String</code> must be of value type; this example used a pointer
+                because
+                that's more efficient and idiomatic for struct types.
+                See the section below on <a href="effective_go_split_011.html#pointers_vs_values"
+                    class="pcalibre calibre">pointers vs. value receivers</a> for more information.)
+            </p>
+
+            <p class="calibre4">
+                Our <code class="calibre6">String</code> method is able to call <code class="calibre6">Sprintf</code>
+                because the
+                print routines are fully reentrant and can be wrapped this way.
+                There is one important detail to understand about this approach,
+                however: don't construct a <code class="calibre6">String</code> method by calling
+                <code class="calibre6">Sprintf</code> in a way that will recur into your <code
+                    class="calibre6">String</code>
+                method indefinitely. This can happen if the <code class="calibre6">Sprintf</code>
+                call attempts to print the receiver directly as a string, which in
+                turn will invoke the method again. It's a common and easy mistake
+                to make, as this example shows.
+            </p>
+
+            <pre class="calibre7">type MyString string
+
+func (m MyString) String() string {
+    return fmt.Sprintf("MyString=%s", m) // Error: will recur forever.
+}
+</pre>
+
+            <p class="calibre4">
+                It's also easy to fix: convert the argument to the basic string type, which does not have the
+                method.
+            </p>
+
+            <pre class="calibre7">type MyString string
+func (m MyString) String() string {
+    return fmt.Sprintf("MyString=%s", string(m)) // OK: note conversion.
+}
+</pre>
+
+            <p class="calibre4">
+                In the <a href="effective_go_split_010.html#initialization" class="pcalibre calibre">initialization
+                    section</a> we'll see another technique that avoids this recursion.
+            </p>
+
+            <p class="calibre4">
+                Another printing technique is to pass a print routine's arguments directly to another such routine.
+                The signature of <code class="calibre6">Printf</code> uses the type <code
+                    class="calibre6">...interface{}</code>
+                for its final argument to specify that an arbitrary number of parameters (of arbitrary type)
+                can appear after the format.
+            </p>
+            <pre class="calibre7">func Printf(format string, v ...interface{}) (n int, err error) {
+</pre>
+            <p class="calibre4">
+                Within the function <code class="calibre6">Printf</code>, <code class="calibre6">v</code> acts like a
+                variable of type
+                <code class="calibre6">[]interface{}</code> but if it is passed to another variadic function, it acts
+                like
+                a regular list of arguments.
+                Here is the implementation of the
+                function <code class="calibre6">log.Println</code> we used above. It passes its arguments directly to
+                <code class="calibre6">fmt.Sprintln</code> for the actual formatting.
+            </p>
+            <pre class="calibre7">// Println prints to the standard logger in the manner of fmt.Println.
+func Println(v ...interface{}) {
+    std.Output(2, fmt.Sprintln(v...))  // Output takes parameters (int, string)
+}
+</pre>
+            <p class="calibre4">
+                We write <code class="calibre6">...</code> after <code class="calibre6">v</code> in the nested call to
+                <code class="calibre6">Sprintln</code> to tell the
+                compiler to treat <code class="calibre6">v</code> as a list of arguments; otherwise it would just pass
+                <code class="calibre6">v</code> as a single slice argument.
+            </p>
+            <p class="calibre4">
+                There's even more to printing than we've covered here. See the <code class="calibre6">godoc</code>
+                documentation
+                for package <code class="calibre6">fmt</code> for the details.
+            </p>
+            <p class="calibre4">
+                By the way, a <code class="calibre6">...</code> parameter can be of a specific type, for instance <code
+                    class="calibre6">...int</code>
+                for a min function that chooses the least of a list of integers:
+            </p>
+            <pre class="calibre7">func Min(a ...int) int {
+    min := int(^uint(0) &gt;&gt; 1)  // largest int
+    for _, i := range a {
+        if i &lt; min {
+            min = i
+        }
+    }
+    return min
+}
+</pre>
+
+            <h3 id="append" class="calibre5">Append</h3>
+            <p class="calibre4">
+                Now we have the missing piece we needed to explain the design of
+                the <code class="calibre6">append</code> built-in function. The signature of <code
+                    class="calibre6">append</code>
+                is different from our custom <code class="calibre6">Append</code> function above.
+                Schematically, it's like this:
+            </p>
+            <pre class="calibre7">func append(slice []<i class="calibre12">T</i>, elements ...<i class="calibre12">T</i>) []<i class="calibre12">T</i>
+</pre>
+            <p class="calibre4">
+                where <i class="calibre12">T</i> is a placeholder for any given type. You can't
+                actually write a function in Go where the type <code class="calibre6">T</code>
+                is determined by the caller.
+                That's why <code class="calibre6">append</code> is built in: it needs support from the
+                compiler.
+            </p>
+            <p class="calibre4">
+                What <code class="calibre6">append</code> does is append the elements to the end of
+                the slice and return the result. The result needs to be returned
+                because, as with our hand-written <code class="calibre6">Append</code>, the underlying
+                array may change. This simple example
+            </p>
+            <pre class="calibre7">x := []int{1,2,3}
+x = append(x, 4, 5, 6)
+fmt.Println(x)
+</pre>
+            <p class="calibre4">
+                prints <code class="calibre6">[1 2 3 4 5 6]</code>. So <code class="calibre6">append</code> works a
+                little like <code class="calibre6">Printf</code>, collecting an arbitrary number of
+                arguments.
+            </p>
+            <p class="calibre4">
+                But what if we wanted to do what our <code class="calibre6">Append</code> does and
+                append a slice to a slice? Easy: use <code class="calibre6">...</code> at the call
+                site, just as we did in the call to <code class="calibre6">Output</code> above. This
+                snippet produces identical output to the one above.
+            </p>
+            <pre class="calibre7">x := []int{1,2,3}
+y := []int{4,5,6}
+x = append(x, y...)
+fmt.Println(x)
+</pre>
+            <p class="calibre4">
+                Without that <code class="calibre6">...</code>, it wouldn't compile because the types
+                would be wrong; <code class="calibre6">y</code> is not of type <code class="calibre6">int</code>.
+            </p>
+
+        </div>
+    </main>
+</body>
+
+</html>

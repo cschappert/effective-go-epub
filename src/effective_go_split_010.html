@@ -1,0 +1,155 @@
+<?xml version='1.0' encoding='utf-8'?>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+
+<head>
+    <title>Effective Go - The Go Programming Language</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <link href="stylesheet.css" rel="stylesheet" type="text/css" />
+    <link href="page_styles.css" rel="stylesheet" type="text/css" />
+</head>
+
+<body class="site">
+    <main id="page" class="site-content">
+        <div class="container">
+            <h2 id="initialization" class="calibre3">Initialization</h2>
+
+            <p class="calibre4">
+                Although it doesn't look superficially very different from
+                initialization in C or C++, initialization in Go is more powerful.
+                Complex structures can be built during initialization and the ordering
+                issues among initialized objects, even among different packages, are handled
+                correctly.
+            </p>
+
+            <h3 id="constants" class="calibre5">Constants</h3>
+
+            <p class="calibre4">
+                Constants in Go are just that—constant.
+                They are created at compile time, even when defined as
+                locals in functions,
+                and can only be numbers, characters (runes), strings or booleans.
+                Because of the compile-time restriction, the expressions
+                that define them must be constant expressions,
+                evaluatable by the compiler. For instance,
+                <code class="calibre6">1&lt;&lt;3</code> is a constant expression, while
+                <code class="calibre6">math.Sin(math.Pi/4)</code> is not because
+                the function call to <code class="calibre6">math.Sin</code> needs
+                to happen at run time.
+            </p>
+
+            <p class="calibre4">
+                In Go, enumerated constants are created using the <code class="calibre6">iota</code>
+                enumerator. Since <code class="calibre6">iota</code> can be part of an expression and
+                expressions can be implicitly repeated, it is easy to build intricate
+                sets of values.
+            </p>
+            <pre class="calibre7"><!--{{code "/doc/progs/eff_bytesize.go" `/^type ByteSize/` `/^\)/`}}
+-->type ByteSize float64
+
+const (
+    _           = iota <span class="comment">// ignore first value by assigning to blank identifier</span>
+    KB ByteSize = 1 &lt;&lt; (10 * iota)
+    MB
+    GB
+    TB
+    PB
+    EB
+    ZB
+    YB
+)</pre>
+            <p class="calibre4">
+                The ability to attach a method such as <code class="calibre6">String</code> to any
+                user-defined type makes it possible for arbitrary values to format themselves
+                automatically for printing.
+                Although you'll see it most often applied to structs, this technique is also useful for
+                scalar types such as floating-point types like <code class="calibre6">ByteSize</code>.
+            </p>
+            <pre class="calibre7"><!--{{code "/doc/progs/eff_bytesize.go" `/^func.*ByteSize.*String/` `/^}/`}}
+-->func (b ByteSize) String() string {
+    switch {
+    case b &gt;= YB:
+        return fmt.Sprintf("%.2fYB", b/YB)
+    case b &gt;= ZB:
+        return fmt.Sprintf("%.2fZB", b/ZB)
+    case b &gt;= EB:
+        return fmt.Sprintf("%.2fEB", b/EB)
+    case b &gt;= PB:
+        return fmt.Sprintf("%.2fPB", b/PB)
+    case b &gt;= TB:
+        return fmt.Sprintf("%.2fTB", b/TB)
+    case b &gt;= GB:
+        return fmt.Sprintf("%.2fGB", b/GB)
+    case b &gt;= MB:
+        return fmt.Sprintf("%.2fMB", b/MB)
+    case b &gt;= KB:
+        return fmt.Sprintf("%.2fKB", b/KB)
+    }
+    return fmt.Sprintf("%.2fB", b)
+}</pre>
+            <p class="calibre4">
+                The expression <code class="calibre6">YB</code> prints as <code class="calibre6">1.00YB</code>,
+                while <code class="calibre6">ByteSize(1e13)</code> prints as <code class="calibre6">9.09TB</code>.
+            </p>
+
+            <p class="calibre4">
+                The use here of <code class="calibre6">Sprintf</code>
+                to implement <code class="calibre6">ByteSize</code>'s <code class="calibre6">String</code> method is
+                safe
+                (avoids recurring indefinitely) not because of a conversion but
+                because it calls <code class="calibre6">Sprintf</code> with <code class="calibre6">%f</code>,
+                which is not a string format: <code class="calibre6">Sprintf</code> will only call
+                the <code class="calibre6">String</code> method when it wants a string, and <code
+                    class="calibre6">%f</code>
+                wants a floating-point value.
+            </p>
+
+            <h3 id="variables" class="calibre5">Variables</h3>
+
+            <p class="calibre4">
+                Variables can be initialized just like constants but the
+                initializer can be a general expression computed at run time.
+            </p>
+            <pre class="calibre7">var (
+    home   = os.Getenv("HOME")
+    user   = os.Getenv("USER")
+    gopath = os.Getenv("GOPATH")
+)
+</pre>
+
+            <h3 id="init" class="calibre5">The init function</h3>
+
+            <p class="calibre4">
+                Finally, each source file can define its own niladic <code class="calibre6">init</code> function to
+                set up whatever state is required. (Actually each file can have multiple
+                <code class="calibre6">init</code> functions.)
+                And finally means finally: <code class="calibre6">init</code> is called after all the
+                variable declarations in the package have evaluated their initializers,
+                and those are evaluated only after all the imported packages have been
+                initialized.
+            </p>
+            <p class="calibre4">
+                Besides initializations that cannot be expressed as declarations,
+                a common use of <code class="calibre6">init</code> functions is to verify or repair
+                correctness of the program state before real execution begins.
+            </p>
+
+            <pre class="calibre7">func init() {
+    if user == "" {
+        log.Fatal("$USER not set")
+    }
+    if home == "" {
+        home = "/home/" + user
+    }
+    if gopath == "" {
+        gopath = home + "/go"
+    }
+    // gopath may be overridden by --gopath flag on command line.
+    flag.StringVar(&amp;gopath, "gopath", gopath, "override default GOPATH")
+}
+</pre>
+
+        </div>
+    </main>
+</body>
+
+</html>

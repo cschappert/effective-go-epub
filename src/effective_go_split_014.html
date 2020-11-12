@@ -1,0 +1,194 @@
+<?xml version='1.0' encoding='utf-8'?>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+
+<head>
+    <title>Effective Go - The Go Programming Language</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <link href="stylesheet.css" rel="stylesheet" type="text/css" />
+    <link href="page_styles.css" rel="stylesheet" type="text/css" />
+</head>
+
+<body class="site">
+    <main id="page" class="site-content">
+        <div class="container">
+            <h2 id="embedding" class="calibre3">Embedding</h2>
+
+            <p class="calibre4">
+                Go does not provide the typical, type-driven notion of subclassing,
+                but it does have the ability to “borrow” pieces of an
+                implementation by <em class="calibre12">embedding</em> types within a struct or
+                interface.
+            </p>
+            <p class="calibre4">
+                Interface embedding is very simple.
+                We've mentioned the <code class="calibre6">io.Reader</code> and <code class="calibre6">io.Writer</code>
+                interfaces before;
+                here are their definitions.
+            </p>
+            <pre class="calibre7">type Reader interface {
+    Read(p []byte) (n int, err error)
+}
+
+type Writer interface {
+    Write(p []byte) (n int, err error)
+}
+</pre>
+            <p class="calibre4">
+                The <code class="calibre6">io</code> package also exports several other interfaces
+                that specify objects that can implement several such methods.
+                For instance, there is <code class="calibre6">io.ReadWriter</code>, an interface
+                containing both <code class="calibre6">Read</code> and <code class="calibre6">Write</code>.
+                We could specify <code class="calibre6">io.ReadWriter</code> by listing the
+                two methods explicitly, but it's easier and more evocative
+                to embed the two interfaces to form the new one, like this:
+            </p>
+            <pre class="calibre7">// ReadWriter is the interface that combines the Reader and Writer interfaces.
+type ReadWriter interface {
+    Reader
+    Writer
+}
+</pre>
+            <p class="calibre4">
+                This says just what it looks like: A <code class="calibre6">ReadWriter</code> can do
+                what a <code class="calibre6">Reader</code> does <em class="calibre12">and</em> what a <code
+                    class="calibre6">Writer</code>
+                does; it is a union of the embedded interfaces.
+                Only interfaces can be embedded within interfaces.
+            </p>
+            <p class="calibre4">
+                The same basic idea applies to structs, but with more far-reaching
+                implications. The <code class="calibre6">bufio</code> package has two struct types,
+                <code class="calibre6">bufio.Reader</code> and <code class="calibre6">bufio.Writer</code>, each of
+                which of course implements the analogous interfaces from package
+                <code class="calibre6">io</code>.
+                And <code class="calibre6">bufio</code> also implements a buffered reader/writer,
+                which it does by combining a reader and a writer into one struct
+                using embedding: it lists the types within the struct
+                but does not give them field names.
+            </p>
+            <pre class="calibre7">// ReadWriter stores pointers to a Reader and a Writer.
+// It implements io.ReadWriter.
+type ReadWriter struct {
+    *Reader  // *bufio.Reader
+    *Writer  // *bufio.Writer
+}
+</pre>
+            <p class="calibre4">
+                The embedded elements are pointers to structs and of course
+                must be initialized to point to valid structs before they
+                can be used.
+                The <code class="calibre6">ReadWriter</code> struct could be written as
+            </p>
+            <pre class="calibre7">type ReadWriter struct {
+    reader *Reader
+    writer *Writer
+}
+</pre>
+            <p class="calibre4">
+                but then to promote the methods of the fields and to
+                satisfy the <code class="calibre6">io</code> interfaces, we would also need
+                to provide forwarding methods, like this:
+            </p>
+            <pre class="calibre7">func (rw *ReadWriter) Read(p []byte) (n int, err error) {
+    return rw.reader.Read(p)
+}
+</pre>
+            <p class="calibre4">
+                By embedding the structs directly, we avoid this bookkeeping.
+                The methods of embedded types come along for free, which means that <code
+                    class="calibre6">bufio.ReadWriter</code>
+                not only has the methods of <code class="calibre6">bufio.Reader</code> and <code
+                    class="calibre6">bufio.Writer</code>,
+                it also satisfies all three interfaces:
+                <code class="calibre6">io.Reader</code>,
+                <code class="calibre6">io.Writer</code>, and
+                <code class="calibre6">io.ReadWriter</code>.
+            </p>
+            <p class="calibre4">
+                There's an important way in which embedding differs from subclassing. When we embed a type,
+                the methods of that type become methods of the outer type,
+                but when they are invoked the receiver of the method is the inner type, not the outer one.
+                In our example, when the <code class="calibre6">Read</code> method of a <code
+                    class="calibre6">bufio.ReadWriter</code> is
+                invoked, it has exactly the same effect as the forwarding method written out above;
+                the receiver is the <code class="calibre6">reader</code> field of the <code
+                    class="calibre6">ReadWriter</code>, not the
+                <code class="calibre6">ReadWriter</code> itself.
+            </p>
+            <p class="calibre4">
+                Embedding can also be a simple convenience.
+                This example shows an embedded field alongside a regular, named field.
+            </p>
+            <pre class="calibre7">type Job struct {
+    Command string
+    *log.Logger
+}
+</pre>
+            <p class="calibre4">
+                The <code class="calibre6">Job</code> type now has the <code class="calibre6">Print</code>, <code
+                    class="calibre6">Printf</code>, <code class="calibre6">Println</code>
+                and other
+                methods of <code class="calibre6">*log.Logger</code>. We could have given the <code
+                    class="calibre6">Logger</code>
+                a field name, of course, but it's not necessary to do so. And now, once
+                initialized, we can
+                log to the <code class="calibre6">Job</code>:
+            </p>
+            <pre class="calibre7">job.Println("starting now...")
+</pre>
+            <p class="calibre4">
+                The <code class="calibre6">Logger</code> is a regular field of the <code class="calibre6">Job</code>
+                struct,
+                so we can initialize it in the usual way inside the constructor for <code class="calibre6">Job</code>,
+                like this,
+            </p>
+            <pre class="calibre7">func NewJob(command string, logger *log.Logger) *Job {
+    return &amp;Job{command, logger}
+}
+</pre>
+            <p class="calibre4">
+                or with a composite literal,
+            </p>
+            <pre class="calibre7">job := &amp;Job{command, log.New(os.Stderr, "Job: ", log.Ldate)}
+</pre>
+            <p class="calibre4">
+                If we need to refer to an embedded field directly, the type name of the field,
+                ignoring the package qualifier, serves as a field name, as it did
+                in the <code class="calibre6">Read</code> method of our <code class="calibre6">ReadWriter</code> struct.
+                Here, if we needed to access the
+                <code class="calibre6">*log.Logger</code> of a <code class="calibre6">Job</code> variable <code
+                    class="calibre6">job</code>,
+                we would write <code class="calibre6">job.Logger</code>,
+                which would be useful if we wanted to refine the methods of <code class="calibre6">Logger</code>.
+            </p>
+            <pre class="calibre7">func (job *Job) Printf(format string, args ...interface{}) {
+    job.Logger.Printf("%q: %s", job.Command, fmt.Sprintf(format, args...))
+}
+</pre>
+            <p class="calibre4">
+                Embedding types introduces the problem of name conflicts but the rules to resolve
+                them are simple.
+                First, a field or method <code class="calibre6">X</code> hides any other item <code
+                    class="calibre6">X</code> in a more deeply
+                nested part of the type.
+                If <code class="calibre6">log.Logger</code> contained a field or method called <code
+                    class="calibre6">Command</code>, the <code class="calibre6">Command</code> field
+                of <code class="calibre6">Job</code> would dominate it.
+            </p>
+            <p class="calibre4">
+                Second, if the same name appears at the same nesting level, it is usually an error;
+                it would be erroneous to embed <code class="calibre6">log.Logger</code> if the <code
+                    class="calibre6">Job</code> struct
+                contained another field or method called <code class="calibre6">Logger</code>.
+                However, if the duplicate name is never mentioned in the program outside the type definition, it is OK.
+                This qualification provides some protection against changes made to types embedded from outside; there
+                is no problem if a field is added that conflicts with another field in another subtype if neither field
+                is ever used.
+            </p>
+
+
+        </div>
+    </main>
+</body>
+
+</html>

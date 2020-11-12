@@ -1,0 +1,79 @@
+<?xml version='1.0' encoding='utf-8'?>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+
+<head>
+  <title>Effective Go - The Go Programming Language</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <link href="stylesheet.css" rel="stylesheet" type="text/css" />
+  <link href="page_styles.css" rel="stylesheet" type="text/css" />
+</head>
+
+<body class="site">
+  <main id="page" class="site-content">
+    <div class="container">
+      <h2 id="semicolons" class="calibre3">Semicolons</h2>
+
+      <p class="calibre4">
+        Like C, Go's formal grammar uses semicolons to terminate statements,
+        but unlike in C, those semicolons do not appear in the source.
+        Instead the lexer uses a simple rule to insert semicolons automatically
+        as it scans, so the input text is mostly free of them.
+      </p>
+
+      <p class="calibre4">
+        The rule is this. If the last token before a newline is an identifier
+        (which includes words like <code class="calibre6">int</code> and <code class="calibre6">float64</code>),
+        a basic literal such as a number or string constant, or one of the
+        tokens
+      </p>
+      <pre class="calibre7">break continue fallthrough return ++ -- ) }
+</pre>
+      <p class="calibre4">
+        the lexer always inserts a semicolon after the token.
+        This could be summarized as, “if the newline comes
+        after a token that could end a statement, insert a semicolon”.
+      </p>
+
+      <p class="calibre4">
+        A semicolon can also be omitted immediately before a closing brace,
+        so a statement such as
+      </p>
+      <pre class="calibre7">    go func() { for { dst &lt;- &lt;-src } }()
+</pre>
+      <p class="calibre4">
+        needs no semicolons.
+        Idiomatic Go programs have semicolons only in places such as
+        <code class="calibre6">for</code> loop clauses, to separate the initializer, condition, and
+        continuation elements. They are also necessary to separate multiple
+        statements on a line, should you write code that way.
+      </p>
+
+      <p class="calibre4">
+        One consequence of the semicolon insertion rules
+        is that you cannot put the opening brace of a
+        control structure (<code class="calibre6">if</code>, <code class="calibre6">for</code>, <code
+          class="calibre6">switch</code>,
+        or <code class="calibre6">select</code>) on the next line. If you do, a semicolon
+        will be inserted before the brace, which could cause unwanted
+        effects. Write them like this
+      </p>
+
+      <pre class="calibre7">if i &lt; f() {
+    g()
+}
+</pre>
+      <p class="calibre4">
+        not like this
+      </p>
+      <pre class="calibre7">if i &lt; f()  // wrong!
+{           // wrong!
+    g()
+}
+</pre>
+
+
+    </div>
+  </main>
+</body>
+
+</html>

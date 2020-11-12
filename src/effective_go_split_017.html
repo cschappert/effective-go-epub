@@ -1,0 +1,135 @@
+<?xml version='1.0' encoding='utf-8'?>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+
+<head>
+  <title>Effective Go - The Go Programming Language</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <link href="stylesheet.css" rel="stylesheet" type="text/css" />
+  <link href="page_styles.css" rel="stylesheet" type="text/css" />
+</head>
+
+<body class="site">
+  <main id="page" class="site-content">
+    <div class="container">
+      <h2 id="web_server" class="calibre3">A web server</h2>
+
+      <p class="calibre4">
+        Let's finish with a complete Go program, a web server.
+        This one is actually a kind of web re-server.
+        Google provides a service at <code class="calibre6">chart.apis.google.com</code>
+        that does automatic formatting of data into charts and graphs.
+        It's hard to use interactively, though,
+        because you need to put the data into the URL as a query.
+        The program here provides a nicer interface to one form of data: given a short piece of text,
+        it calls on the chart server to produce a QR code, a matrix of boxes that encode the
+        text.
+        That image can be grabbed with your cell phone's camera and interpreted as,
+        for instance, a URL, saving you typing the URL into the phone's tiny keyboard.
+      </p>
+      <p class="calibre4">
+        Here's the complete program.
+        An explanation follows.
+      </p>
+      <pre class="calibre7"><!--{{code "/doc/progs/eff_qr.go" `/package/` "$"}}
+-->package main
+
+import (
+    "flag"
+    "html/template"
+    "log"
+    "net/http"
+)
+
+var addr = flag.String("addr", ":1718", "http service address") <span class="comment">// Q=17, R=18</span>
+
+var templ = template.Must(template.New("qr").Parse(templateStr))
+
+func main() {
+    flag.Parse()
+    http.Handle("/", http.HandlerFunc(QR))
+    err := http.ListenAndServe(*addr, nil)
+    if err != nil {
+        log.Fatal("ListenAndServe:", err)
+    }
+}
+
+func QR(w http.ResponseWriter, req *http.Request) {
+    templ.Execute(w, req.FormValue("s"))
+}
+
+const templateStr = `
+&lt;html&gt;
+&lt;head&gt;
+&lt;title&gt;QR Link Generator&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+{{if .}}
+&lt;img src="http://chart.apis.google.com/chart?chs=300x300&amp;cht=qr&amp;choe=UTF-8&amp;chl={{.}}" /&gt;
+&lt;br&gt;
+{{.}}
+&lt;br&gt;
+&lt;br&gt;
+{{end}}
+&lt;form action="/" name=f method="GET"&gt;
+    &lt;input maxLength=1024 size=70 name=s value="" title="Text to QR Encode"&gt;
+    &lt;input type=submit value="Show QR" name=qr&gt;
+&lt;/form&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+`</pre>
+      <p class="calibre4">
+        The pieces up to <code class="calibre6">main</code> should be easy to follow.
+        The one flag sets a default HTTP port for our server. The template
+        variable <code class="calibre6">templ</code> is where the fun happens. It builds an HTML template
+        that will be executed by the server to display the page; more about
+        that in a moment.
+      </p>
+      <p class="calibre4">
+        The <code class="calibre6">main</code> function parses the flags and, using the mechanism
+        we talked about above, binds the function <code class="calibre6">QR</code> to the root path
+        for the server. Then <code class="calibre6">http.ListenAndServe</code> is called to start the
+        server; it blocks while the server runs.
+      </p>
+      <p class="calibre4">
+        <code class="calibre6">QR</code> just receives the request, which contains form data, and
+        executes the template on the data in the form value named <code class="calibre6">s</code>.
+      </p>
+      <p class="calibre4">
+        The template package <code class="calibre6">html/template</code> is powerful;
+        this program just touches on its capabilities.
+        In essence, it rewrites a piece of HTML text on the fly by substituting elements derived
+        from data items passed to <code class="calibre6">templ.Execute</code>, in this case the
+        form value.
+        Within the template text (<code class="calibre6">templateStr</code>),
+        double-brace-delimited pieces denote template actions.
+        The piece from <code class="calibre6">{{if .}}</code>
+        to <code class="calibre6">{{end}}</code> executes only if the value of the current data item, called <code
+          class="calibre6">.</code> (dot),
+        is non-empty.
+        That is, when the string is empty, this piece of the template is suppressed.
+      </p>
+      <p class="calibre4">
+        The two snippets <code class="calibre6">{{.}}</code> say to show the data presented to
+        the template—the query string—on the web page.
+        The HTML template package automatically provides appropriate escaping so the
+        text is safe to display.
+      </p>
+      <p class="calibre4">
+        The rest of the template string is just the HTML to show when the page loads.
+        If this is too quick an explanation, see the <a href="https://golang.org/pkg/html/template/"
+          class="pcalibre calibre">documentation</a>
+        for the template package for a more thorough discussion.
+      </p>
+      <p class="calibre4">
+        And there you have it: a useful web server in a few lines of code plus some
+        data-driven HTML text.
+        Go is powerful enough to make a lot happen in a few lines.
+      </p>
+      <p class="calibre4">
+        <a href="https://golang.org/doc/copyright.html" class="pcalibre calibre">Copyright</a>
+      </p>
+    </div>
+  </main>
+</body>
+
+</html>

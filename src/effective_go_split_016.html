@@ -1,0 +1,313 @@
+<?xml version='1.0' encoding='utf-8'?>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+
+<head>
+    <title>Effective Go - The Go Programming Language</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <link href="stylesheet.css" rel="stylesheet" type="text/css" />
+    <link href="page_styles.css" rel="stylesheet" type="text/css" />
+</head>
+
+<body class="site">
+    <main id="page" class="site-content">
+        <div class="container">
+            <h2 id="errors" class="calibre3">Errors</h2>
+
+            <p class="calibre4">
+                Library routines must often return some sort of error indication to
+                the caller.
+                As mentioned earlier, Go's multivalue return makes it
+                easy to return a detailed error description alongside the normal
+                return value.
+                It is good style to use this feature to provide detailed error information.
+                For example, as we'll see, <code class="calibre6">os.Open</code> doesn't
+                just return a <code class="calibre6">nil</code> pointer on failure, it also returns an
+                error value that describes what went wrong.
+            </p>
+
+            <p class="calibre4">
+                By convention, errors have type <code class="calibre6">error</code>,
+                a simple built-in interface.
+            </p>
+            <pre class="calibre7">type error interface {
+    Error() string
+}
+</pre>
+            <p class="calibre4">
+                A library writer is free to implement this interface with a
+                richer model under the covers, making it possible not only
+                to see the error but also to provide some context.
+                As mentioned, alongside the usual <code class="calibre6">*os.File</code>
+                return value, <code class="calibre6">os.Open</code> also returns an
+                error value.
+                If the file is opened successfully, the error will be <code class="calibre6">nil</code>,
+                but when there is a problem, it will hold an
+                <code class="calibre6">os.PathError</code>:
+            </p>
+            <pre class="calibre7">// PathError records an error and the operation and
+// file path that caused it.
+type PathError struct {
+    Op string    // "open", "unlink", etc.
+    Path string  // The associated file.
+    Err error    // Returned by the system call.
+}
+
+func (e *PathError) Error() string {
+    return e.Op + " " + e.Path + ": " + e.Err.Error()
+}
+</pre>
+            <p class="calibre4">
+                <code class="calibre6">PathError</code>'s <code class="calibre6">Error</code> generates
+                a string like this:
+            </p>
+            <pre class="calibre7">open /etc/passwx: no such file or directory
+</pre>
+            <p class="calibre4">
+                Such an error, which includes the problematic file name, the
+                operation, and the operating system error it triggered, is useful even
+                if printed far from the call that caused it;
+                it is much more informative than the plain
+                "no such file or directory".
+            </p>
+
+            <p class="calibre4">
+                When feasible, error strings should identify their origin, such as by having
+                a prefix naming the operation or package that generated the error. For example, in package
+                <code class="calibre6">image</code>, the string representation for a decoding error due to an
+                unknown format is "image: unknown format".
+            </p>
+
+            <p class="calibre4">
+                Callers that care about the precise error details can
+                use a type switch or a type assertion to look for specific
+                errors and extract details. For <code class="calibre6">PathErrors</code>
+                this might include examining the internal <code class="calibre6">Err</code>
+                field for recoverable failures.
+            </p>
+
+            <pre class="calibre7">for try := 0; try &lt; 2; try++ {
+    file, err = os.Create(filename)
+    if err == nil {
+        return
+    }
+    if e, ok := err.(*os.PathError); ok &amp;&amp; e.Err == syscall.ENOSPC {
+        deleteTempFiles()  // Recover some space.
+        continue
+    }
+    return
+}
+</pre>
+
+            <p class="calibre4">
+                The second <code class="calibre6">if</code> statement here is another <a
+                    href="effective_go_split_012.html#interface_conversions" class="pcalibre calibre">type
+                    assertion</a>.
+                If it fails, <code class="calibre6">ok</code> will be false, and <code class="calibre6">e</code>
+                will be <code class="calibre6">nil</code>.
+                If it succeeds, <code class="calibre6">ok</code> will be true, which means the
+                error was of type <code class="calibre6">*os.PathError</code>, and then so is <code
+                    class="calibre6">e</code>,
+                which we can examine for more information about the error.
+            </p>
+
+            <h3 id="panic" class="calibre5">Panic</h3>
+
+            <p class="calibre4">
+                The usual way to report an error to a caller is to return an
+                <code class="calibre6">error</code> as an extra return value. The canonical
+                <code class="calibre6">Read</code> method is a well-known instance; it returns a byte
+                count and an <code class="calibre6">error</code>. But what if the error is
+                unrecoverable? Sometimes the program simply cannot continue.
+            </p>
+
+            <p class="calibre4">
+                For this purpose, there is a built-in function <code class="calibre6">panic</code>
+                that in effect creates a run-time error that will stop the program
+                (but see the next section). The function takes a single argument
+                of arbitrary type—often a string—to be printed as the
+                program dies. It's also a way to indicate that something impossible has
+                happened, such as exiting an infinite loop.
+            </p>
+
+
+            <pre class="calibre7">// A toy implementation of cube root using Newton's method.
+func CubeRoot(x float64) float64 {
+    z := x/3   // Arbitrary initial value
+    for i := 0; i &lt; 1e6; i++ {
+        prevz := z
+        z -= (z*z*z-x) / (3*z*z)
+        if veryClose(z, prevz) {
+            return z
+        }
+    }
+    // A million iterations has not converged; something is wrong.
+    panic(fmt.Sprintf("CubeRoot(%g) did not converge", x))
+}
+</pre>
+
+            <p class="calibre4">
+                This is only an example but real library functions should
+                avoid <code class="calibre6">panic</code>. If the problem can be masked or worked
+                around, it's always better to let things continue to run rather
+                than taking down the whole program. One possible counterexample
+                is during initialization: if the library truly cannot set itself up,
+                it might be reasonable to panic, so to speak.
+            </p>
+
+            <pre class="calibre7">var user = os.Getenv("USER")
+
+func init() {
+    if user == "" {
+        panic("no value for $USER")
+    }
+}
+</pre>
+
+            <h3 id="recover" class="calibre5">Recover</h3>
+
+            <p class="calibre4">
+                When <code class="calibre6">panic</code> is called, including implicitly for run-time
+                errors such as indexing a slice out of bounds or failing a type
+                assertion, it immediately stops execution of the current function
+                and begins unwinding the stack of the goroutine, running any deferred
+                functions along the way. If that unwinding reaches the top of the
+                goroutine's stack, the program dies. However, it is possible to
+                use the built-in function <code class="calibre6">recover</code> to regain control
+                of the goroutine and resume normal execution.
+            </p>
+
+            <p class="calibre4">
+                A call to <code class="calibre6">recover</code> stops the unwinding and returns the
+                argument passed to <code class="calibre6">panic</code>. Because the only code that
+                runs while unwinding is inside deferred functions, <code class="calibre6">recover</code>
+                is only useful inside deferred functions.
+            </p>
+
+            <p class="calibre4">
+                One application of <code class="calibre6">recover</code> is to shut down a failing goroutine
+                inside a server without killing the other executing goroutines.
+            </p>
+
+            <pre class="calibre7">func server(workChan &lt;-chan *Work) {
+    for work := range workChan {
+        go safelyDo(work)
+    }
+}
+
+func safelyDo(work *Work) {
+    defer func() {
+        if err := recover(); err != nil {
+            log.Println("work failed:", err)
+        }
+    }()
+    do(work)
+}
+</pre>
+
+            <p class="calibre4">
+                In this example, if <code class="calibre6">do(work)</code> panics, the result will be
+                logged and the goroutine will exit cleanly without disturbing the
+                others. There's no need to do anything else in the deferred closure;
+                calling <code class="calibre6">recover</code> handles the condition completely.
+            </p>
+
+            <p class="calibre4">
+                Because <code class="calibre6">recover</code> always returns <code class="calibre6">nil</code> unless
+                called directly
+                from a deferred function, deferred code can call library routines that themselves
+                use <code class="calibre6">panic</code> and <code class="calibre6">recover</code> without failing. As an
+                example,
+                the deferred function in <code class="calibre6">safelyDo</code> might call a logging function before
+                calling <code class="calibre6">recover</code>, and that logging code would run unaffected
+                by the panicking state.
+            </p>
+
+            <p class="calibre4">
+                With our recovery pattern in place, the <code class="calibre6">do</code>
+                function (and anything it calls) can get out of any bad situation
+                cleanly by calling <code class="calibre6">panic</code>. We can use that idea to
+                simplify error handling in complex software. Let's look at an
+                idealized version of a <code class="calibre6">regexp</code> package, which reports
+                parsing errors by calling <code class="calibre6">panic</code> with a local
+                error type. Here's the definition of <code class="calibre6">Error</code>,
+                an <code class="calibre6">error</code> method, and the <code class="calibre6">Compile</code> function.
+            </p>
+
+            <pre class="calibre7">// Error is the type of a parse error; it satisfies the error interface.
+type Error string
+func (e Error) Error() string {
+    return string(e)
+}
+
+// error is a method of *Regexp that reports parsing errors by
+// panicking with an Error.
+func (regexp *Regexp) error(err string) {
+    panic(Error(err))
+}
+
+// Compile returns a parsed representation of the regular expression.
+func Compile(str string) (regexp *Regexp, err error) {
+    regexp = new(Regexp)
+    // doParse will panic if there is a parse error.
+    defer func() {
+        if e := recover(); e != nil {
+            regexp = nil    // Clear return value.
+            err = e.(Error) // Will re-panic if not a parse error.
+        }
+    }()
+    return regexp.doParse(str), nil
+}
+</pre>
+
+            <p class="calibre4">
+                If <code class="calibre6">doParse</code> panics, the recovery block will set the
+                return value to <code class="calibre6">nil</code>—deferred functions can modify
+                named return values. It will then check, in the assignment
+                to <code class="calibre6">err</code>, that the problem was a parse error by asserting
+                that it has the local type <code class="calibre6">Error</code>.
+                If it does not, the type assertion will fail, causing a run-time error
+                that continues the stack unwinding as though nothing had interrupted
+                it.
+                This check means that if something unexpected happens, such
+                as an index out of bounds, the code will fail even though we
+                are using <code class="calibre6">panic</code> and <code class="calibre6">recover</code> to handle
+                parse errors.
+            </p>
+
+            <p class="calibre4">
+                With error handling in place, the <code class="calibre6">error</code> method (because it's a
+                method bound to a type, it's fine, even natural, for it to have the same name
+                as the builtin <code class="calibre6">error</code> type)
+                makes it easy to report parse errors without worrying about unwinding
+                the parse stack by hand:
+            </p>
+
+            <pre class="calibre7">if pos == 0 {
+    re.error("'*' illegal at start of expression")
+}
+</pre>
+
+            <p class="calibre4">
+                Useful though this pattern is, it should be used only within a package.
+                <code class="calibre6">Parse</code> turns its internal <code class="calibre6">panic</code> calls into
+                <code class="calibre6">error</code> values; it does not expose <code class="calibre6">panics</code>
+                to its client. That is a good rule to follow.
+            </p>
+
+            <p class="calibre4">
+                By the way, this re-panic idiom changes the panic value if an actual
+                error occurs. However, both the original and new failures will be
+                presented in the crash report, so the root cause of the problem will
+                still be visible. Thus this simple re-panic approach is usually
+                sufficient—it's a crash after all—but if you want to
+                display only the original value, you can write a little more code to
+                filter unexpected problems and re-panic with the original error.
+                That's left as an exercise for the reader.
+            </p>
+
+
+        </div>
+    </main>
+</body>
+
+</html>

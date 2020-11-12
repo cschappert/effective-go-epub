@@ -1,0 +1,431 @@
+<?xml version='1.0' encoding='utf-8'?>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+
+<head>
+    <title>Effective Go - The Go Programming Language</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <link href="stylesheet.css" rel="stylesheet" type="text/css" />
+    <link href="page_styles.css" rel="stylesheet" type="text/css" />
+</head>
+
+<body class="site">
+    <main id="page" class="site-content">
+        <div class="container">
+            <h2 id="interfaces_and_types" class="calibre3">Interfaces and other types</h2>
+
+            <h3 id="interfaces" class="calibre5">Interfaces</h3>
+            <p class="calibre4">
+                Interfaces in Go provide a way to specify the behavior of an
+                object: if something can do <em class="calibre12">this</em>, then it can be used
+                <em class="calibre12">here</em>. We've seen a couple of simple examples already;
+                custom printers can be implemented by a <code class="calibre6">String</code> method
+                while <code class="calibre6">Fprintf</code> can generate output to anything
+                with a <code class="calibre6">Write</code> method.
+                Interfaces with only one or two methods are common in Go code, and are
+                usually given a name derived from the method, such as <code class="calibre6">io.Writer</code>
+                for something that implements <code class="calibre6">Write</code>.
+            </p>
+            <p class="calibre4">
+                A type can implement multiple interfaces.
+                For instance, a collection can be sorted
+                by the routines in package <code class="calibre6">sort</code> if it implements
+                <code class="calibre6">sort.Interface</code>, which contains <code class="calibre6">Len()</code>,
+                <code class="calibre6">Less(i, j int) bool</code>, and <code class="calibre6">Swap(i, j int)</code>,
+                and it could also have a custom formatter.
+                In this contrived example <code class="calibre6">Sequence</code> satisfies both.
+            </p>
+            <pre class="calibre7"><!--{{code "/doc/progs/eff_sequence.go" `/^type/` "$"}}
+-->type Sequence []int
+
+<span class="comment">// Methods required by sort.Interface.</span>
+func (s Sequence) Len() int {
+    return len(s)
+}
+func (s Sequence) Less(i, j int) bool {
+    return s[i] &lt; s[j]
+}
+func (s Sequence) Swap(i, j int) {
+    s[i], s[j] = s[j], s[i]
+}
+
+<span class="comment">// Copy returns a copy of the Sequence.</span>
+func (s Sequence) Copy() Sequence {
+    copy := make(Sequence, 0, len(s))
+    return append(copy, s...)
+}
+
+<span class="comment">// Method for printing - sorts the elements before printing.</span>
+func (s Sequence) String() string {
+    s = s.Copy() <span class="comment">// Make a copy; don't overwrite argument.</span>
+    sort.Sort(s)
+    str := "["
+    for i, elem := range s { <span class="comment">// Loop is O(N²); will fix that in next example.</span>
+        if i &gt; 0 {
+            str += " "
+        }
+        str += fmt.Sprint(elem)
+    }
+    return str + "]"
+}</pre>
+
+            <h3 id="conversions" class="calibre5">Conversions</h3>
+
+            <p class="calibre4">
+                The <code class="calibre6">String</code> method of <code class="calibre6">Sequence</code> is recreating
+                the
+                work that <code class="calibre6">Sprint</code> already does for slices.
+                (It also has complexity O(N²), which is poor.) We can share the
+                effort (and also speed it up) if we convert the <code class="calibre6">Sequence</code> to a plain
+                <code class="calibre6">[]int</code> before calling <code class="calibre6">Sprint</code>.
+            </p>
+            <pre class="calibre7">func (s Sequence) String() string {
+    s = s.Copy()
+    sort.Sort(s)
+    return fmt.Sprint([]int(s))
+}
+</pre>
+            <p class="calibre4">
+                This method is another example of the conversion technique for calling
+                <code class="calibre6">Sprintf</code> safely from a <code class="calibre6">String</code> method.
+                Because the two types (<code class="calibre6">Sequence</code> and <code class="calibre6">[]int</code>)
+                are the same if we ignore the type name, it's legal to convert between them.
+                The conversion doesn't create a new value, it just temporarily acts
+                as though the existing value has a new type.
+                (There are other legal conversions, such as from integer to floating point, that
+                do create a new value.)
+            </p>
+            <p class="calibre4">
+                It's an idiom in Go programs to convert the
+                type of an expression to access a different
+                set of methods. As an example, we could use the existing
+                type <code class="calibre6">sort.IntSlice</code> to reduce the entire example
+                to this:
+            </p>
+            <pre class="calibre7">type Sequence []int
+
+// Method for printing - sorts the elements before printing
+func (s Sequence) String() string {
+    s = s.Copy()
+    sort.IntSlice(s).Sort()
+    return fmt.Sprint([]int(s))
+}
+</pre>
+            <p class="calibre4">
+                Now, instead of having <code class="calibre6">Sequence</code> implement multiple
+                interfaces (sorting and printing), we're using the ability of a data item to be
+                converted to multiple types (<code class="calibre6">Sequence</code>, <code
+                    class="calibre6">sort.IntSlice</code>
+                and <code class="calibre6">[]int</code>), each of which does some part of the job.
+                That's more unusual in practice but can be effective.
+            </p>
+
+            <h3 id="interface_conversions" class="calibre5">Interface conversions and type assertions</h3>
+
+            <p class="calibre4">
+                <a href="effective_go_split_007.html#type_switch" class="pcalibre calibre">Type switches</a> are a form
+                of conversion: they take an interface and, for
+                each case in the switch, in a sense convert it to the type of that case.
+                Here's a simplified version of how the code under <code class="calibre6">fmt.Printf</code> turns a value
+                into
+                a string using a type switch.
+                If it's already a string, we want the actual string value held by the interface, while if it has a
+                <code class="calibre6">String</code> method we want the result of calling the method.
+            </p>
+
+            <pre class="calibre7">type Stringer interface {
+    String() string
+}
+
+var value interface{} // Value provided by caller.
+switch str := value.(type) {
+case string:
+    return str
+case Stringer:
+    return str.String()
+}
+</pre>
+
+            <p class="calibre4">
+                The first case finds a concrete value; the second converts the interface into another interface.
+                It's perfectly fine to mix types this way.
+            </p>
+
+            <p class="calibre4">
+                What if there's only one type we care about? If we know the value holds a <code
+                    class="calibre6">string</code>
+                and we just want to extract it?
+                A one-case type switch would do, but so would a <em class="calibre12">type assertion</em>.
+                A type assertion takes an interface value and extracts from it a value of the specified explicit type.
+                The syntax borrows from the clause opening a type switch, but with an explicit
+                type rather than the <code class="calibre6">type</code> keyword:
+            </p>
+
+            <pre class="calibre7">value.(typeName)
+</pre>
+
+            <p class="calibre4">
+                and the result is a new value with the static type <code class="calibre6">typeName</code>.
+                That type must either be the concrete type held by the interface, or a second interface
+                type that the value can be converted to.
+                To extract the string we know is in the value, we could write:
+            </p>
+
+            <pre class="calibre7">str := value.(string)
+</pre>
+
+            <p class="calibre4">
+                But if it turns out that the value does not contain a string, the program will crash with a run-time
+                error.
+                To guard against that, use the "comma, ok" idiom to test, safely, whether the value is a string:
+            </p>
+
+            <pre class="calibre7">str, ok := value.(string)
+if ok {
+    fmt.Printf("string value is: %q\n", str)
+} else {
+    fmt.Printf("value is not a string\n")
+}
+</pre>
+
+            <p class="calibre4">
+                If the type assertion fails, <code class="calibre6">str</code> will still exist and be of type string,
+                but it will have
+                the zero value, an empty string.
+            </p>
+
+            <p class="calibre4">
+                As an illustration of the capability, here's an <code class="calibre6">if</code>-<code
+                    class="calibre6">else</code>
+                statement that's equivalent to the type switch that opened this section.
+            </p>
+
+            <pre class="calibre7">if str, ok := value.(string); ok {
+    return str
+} else if str, ok := value.(Stringer); ok {
+    return str.String()
+}
+</pre>
+
+            <h3 id="generality" class="calibre5">Generality</h3>
+            <p class="calibre4">
+                If a type exists only to implement an interface and will
+                never have exported methods beyond that interface, there is
+                no need to export the type itself.
+                Exporting just the interface makes it clear the value has no
+                interesting behavior beyond what is described in the
+                interface.
+                It also avoids the need to repeat the documentation
+                on every instance of a common method.
+            </p>
+            <p class="calibre4">
+                In such cases, the constructor should return an interface value
+                rather than the implementing type.
+                As an example, in the hash libraries
+                both <code class="calibre6">crc32.NewIEEE</code> and <code class="calibre6">adler32.New</code>
+                return the interface type <code class="calibre6">hash.Hash32</code>.
+                Substituting the CRC-32 algorithm for Adler-32 in a Go program
+                requires only changing the constructor call;
+                the rest of the code is unaffected by the change of algorithm.
+            </p>
+            <p class="calibre4">
+                A similar approach allows the streaming cipher algorithms
+                in the various <code class="calibre6">crypto</code> packages to be
+                separated from the block ciphers they chain together.
+                The <code class="calibre6">Block</code> interface
+                in the <code class="calibre6">crypto/cipher</code> package specifies the
+                behavior of a block cipher, which provides encryption
+                of a single block of data.
+                Then, by analogy with the <code class="calibre6">bufio</code> package,
+                cipher packages that implement this interface
+                can be used to construct streaming ciphers, represented
+                by the <code class="calibre6">Stream</code> interface, without
+                knowing the details of the block encryption.
+            </p>
+            <p class="calibre4">
+                The <code class="calibre6">crypto/cipher</code> interfaces look like this:
+            </p>
+            <pre class="calibre7">type Block interface {
+    BlockSize() int
+    Encrypt(dst, src []byte)
+    Decrypt(dst, src []byte)
+}
+
+type Stream interface {
+    XORKeyStream(dst, src []byte)
+}
+</pre>
+
+            <p class="calibre4">
+                Here's the definition of the counter mode (CTR) stream,
+                which turns a block cipher into a streaming cipher; notice
+                that the block cipher's details are abstracted away:
+            </p>
+
+            <pre class="calibre7">// NewCTR returns a Stream that encrypts/decrypts using the given Block in
+// counter mode. The length of iv must be the same as the Block's block size.
+func NewCTR(block Block, iv []byte) Stream
+</pre>
+            <p class="calibre4">
+                <code class="calibre6">NewCTR</code> applies not
+                just to one specific encryption algorithm and data source but to any
+                implementation of the <code class="calibre6">Block</code> interface and any
+                <code class="calibre6">Stream</code>. Because they return
+                interface values, replacing CTR
+                encryption with other encryption modes is a localized change. The constructor
+                calls must be edited, but because the surrounding code must treat the result only
+                as a <code class="calibre6">Stream</code>, it won't notice the difference.
+            </p>
+
+            <h3 id="interface_methods" class="calibre5">Interfaces and methods</h3>
+            <p class="calibre4">
+                Since almost anything can have methods attached, almost anything can
+                satisfy an interface. One illustrative example is in the <code class="calibre6">http</code>
+                package, which defines the <code class="calibre6">Handler</code> interface. Any object
+                that implements <code class="calibre6">Handler</code> can serve HTTP requests.
+            </p>
+            <pre class="calibre7">type Handler interface {
+    ServeHTTP(ResponseWriter, *Request)
+}
+</pre>
+            <p class="calibre4">
+                <code class="calibre6">ResponseWriter</code> is itself an interface that provides access
+                to the methods needed to return the response to the client.
+                Those methods include the standard <code class="calibre6">Write</code> method, so an
+                <code class="calibre6">http.ResponseWriter</code> can be used wherever an <code
+                    class="calibre6">io.Writer</code>
+                can be used.
+                <code class="calibre6">Request</code> is a struct containing a parsed representation
+                of the request from the client.
+            </p>
+            <p class="calibre4">
+                For brevity, let's ignore POSTs and assume HTTP requests are always
+                GETs; that simplification does not affect the way the handlers are set up.
+                Here's a trivial implementation of a handler to count the number of times
+                the page is visited.
+            </p>
+            <pre class="calibre7">// Simple counter server.
+type Counter struct {
+    n int
+}
+
+func (ctr *Counter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+    ctr.n++
+    fmt.Fprintf(w, "counter = %d\n", ctr.n)
+}
+</pre>
+            <p class="calibre4">
+                (Keeping with our theme, note how <code class="calibre6">Fprintf</code> can print to an
+                <code class="calibre6">http.ResponseWriter</code>.)
+                In a real server, access to <code class="calibre6">ctr.n</code> would need protection from
+                concurrent access.
+                See the <code class="calibre6">sync</code> and <code class="calibre6">atomic</code> packages for
+                suggestions.
+            </p>
+            <p class="calibre4">
+                For reference, here's how to attach such a server to a node on the URL tree.
+            </p>
+            <pre class="calibre7">import "net/http"
+...
+ctr := new(Counter)
+http.Handle("/counter", ctr)
+</pre>
+            <p class="calibre4">
+                But why make <code class="calibre6">Counter</code> a struct? An integer is all that's needed.
+                (The receiver needs to be a pointer so the increment is visible to the caller.)
+            </p>
+            <pre class="calibre7">// Simpler counter server.
+type Counter int
+
+func (ctr *Counter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+    *ctr++
+    fmt.Fprintf(w, "counter = %d\n", *ctr)
+}
+</pre>
+            <p class="calibre4">
+                What if your program has some internal state that needs to be notified that a page
+                has been visited? Tie a channel to the web page.
+            </p>
+            <pre class="calibre7">// A channel that sends a notification on each visit.
+// (Probably want the channel to be buffered.)
+type Chan chan *http.Request
+
+func (ch Chan) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+    ch &lt;- req
+    fmt.Fprint(w, "notification sent")
+}
+</pre>
+            <p class="calibre4">
+                Finally, let's say we wanted to present on <code class="calibre6">/args</code> the arguments
+                used when invoking the server binary.
+                It's easy to write a function to print the arguments.
+            </p>
+            <pre class="calibre7">func ArgServer() {
+    fmt.Println(os.Args)
+}
+</pre>
+            <p class="calibre4">
+                How do we turn that into an HTTP server? We could make <code class="calibre6">ArgServer</code>
+                a method of some type whose value we ignore, but there's a cleaner way.
+                Since we can define a method for any type except pointers and interfaces,
+                we can write a method for a function.
+                The <code class="calibre6">http</code> package contains this code:
+            </p>
+            <pre class="calibre7">// The HandlerFunc type is an adapter to allow the use of
+// ordinary functions as HTTP handlers.  If f is a function
+// with the appropriate signature, HandlerFunc(f) is a
+// Handler object that calls f.
+type HandlerFunc func(ResponseWriter, *Request)
+
+// ServeHTTP calls f(w, req).
+func (f HandlerFunc) ServeHTTP(w ResponseWriter, req *Request) {
+    f(w, req)
+}
+</pre>
+            <p class="calibre4">
+                <code class="calibre6">HandlerFunc</code> is a type with a method, <code
+                    class="calibre6">ServeHTTP</code>,
+                so values of that type can serve HTTP requests. Look at the implementation
+                of the method: the receiver is a function, <code class="calibre6">f</code>, and the method
+                calls <code class="calibre6">f</code>. That may seem odd but it's not that different from, say,
+                the receiver being a channel and the method sending on the channel.
+            </p>
+            <p class="calibre4">
+                To make <code class="calibre6">ArgServer</code> into an HTTP server, we first modify it
+                to have the right signature.
+            </p>
+            <pre class="calibre7">// Argument server.
+func ArgServer(w http.ResponseWriter, req *http.Request) {
+    fmt.Fprintln(w, os.Args)
+}
+</pre>
+            <p class="calibre4">
+                <code class="calibre6">ArgServer</code> now has same signature as <code
+                    class="calibre6">HandlerFunc</code>,
+                so it can be converted to that type to access its methods,
+                just as we converted <code class="calibre6">Sequence</code> to <code class="calibre6">IntSlice</code>
+                to access <code class="calibre6">IntSlice.Sort</code>.
+                The code to set it up is concise:
+            </p>
+            <pre class="calibre7">http.Handle("/args", http.HandlerFunc(ArgServer))
+</pre>
+            <p class="calibre4">
+                When someone visits the page <code class="calibre6">/args</code>,
+                the handler installed at that page has value <code class="calibre6">ArgServer</code>
+                and type <code class="calibre6">HandlerFunc</code>.
+                The HTTP server will invoke the method <code class="calibre6">ServeHTTP</code>
+                of that type, with <code class="calibre6">ArgServer</code> as the receiver, which will in turn call
+                <code class="calibre6">ArgServer</code> (via the invocation <code class="calibre6">f(w, req)</code>
+                inside <code class="calibre6">HandlerFunc.ServeHTTP</code>).
+                The arguments will then be displayed.
+            </p>
+            <p class="calibre4">
+                In this section we have made an HTTP server from a struct, an integer,
+                a channel, and a function, all because interfaces are just sets of
+                methods, which can be defined for (almost) any type.
+            </p>
+
+        </div>
+    </main>
+</body>
+
+</html>

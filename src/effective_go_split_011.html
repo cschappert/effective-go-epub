@@ -1,0 +1,95 @@
+<?xml version='1.0' encoding='utf-8'?>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+
+<head>
+  <title>Effective Go - The Go Programming Language</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <link href="stylesheet.css" rel="stylesheet" type="text/css" />
+  <link href="page_styles.css" rel="stylesheet" type="text/css" />
+</head>
+
+<body class="site">
+  <main id="page" class="site-content">
+    <div class="container">
+      <h2 id="methods" class="calibre3">Methods</h2>
+
+      <h3 id="pointers_vs_values" class="calibre5">Pointers vs. Values</h3>
+      <p class="calibre4">
+        As we saw with <code class="calibre6">ByteSize</code>,
+        methods can be defined for any named type (except a pointer or an interface);
+        the receiver does not have to be a struct.
+      </p>
+      <p class="calibre4">
+        In the discussion of slices above, we wrote an <code class="calibre6">Append</code>
+        function. We can define it as a method on slices instead. To do
+        this, we first declare a named type to which we can bind the method, and
+        then make the receiver for the method a value of that type.
+      </p>
+      <pre class="calibre7">type ByteSlice []byte
+
+func (slice ByteSlice) Append(data []byte) []byte {
+    // Body exactly the same as the Append function defined above.
+}
+</pre>
+      <p class="calibre4">
+        This still requires the method to return the updated slice. We can
+        eliminate that clumsiness by redefining the method to take a
+        <i class="calibre12">pointer</i> to a <code class="calibre6">ByteSlice</code> as its receiver, so the
+        method can overwrite the caller's slice.
+      </p>
+      <pre class="calibre7">func (p *ByteSlice) Append(data []byte) {
+    slice := *p
+    // Body as above, without the return.
+    *p = slice
+}
+</pre>
+      <p class="calibre4">
+        In fact, we can do even better. If we modify our function so it looks
+        like a standard <code class="calibre6">Write</code> method, like this,
+      </p>
+      <pre class="calibre7">func (p *ByteSlice) Write(data []byte) (n int, err error) {
+    slice := *p
+    // Again as above.
+    *p = slice
+    return len(data), nil
+}
+</pre>
+      <p class="calibre4">
+        then the type <code class="calibre6">*ByteSlice</code> satisfies the standard interface
+        <code class="calibre6">io.Writer</code>, which is handy. For instance, we can
+        print into one.
+      </p>
+      <pre class="calibre7">    var b ByteSlice
+    fmt.Fprintf(&amp;b, "This hour has %d days\n", 7)
+</pre>
+      <p class="calibre4">
+        We pass the address of a <code class="calibre6">ByteSlice</code>
+        because only <code class="calibre6">*ByteSlice</code> satisfies <code class="calibre6">io.Writer</code>.
+        The rule about pointers vs. values for receivers is that value methods
+        can be invoked on pointers and values, but pointer methods can only be
+        invoked on pointers.
+      </p>
+
+      <p class="calibre4">
+        This rule arises because pointer methods can modify the receiver; invoking
+        them on a value would cause the method to receive a copy of the value, so
+        any modifications would be discarded.
+        The language therefore disallows this mistake.
+        There is a handy exception, though. When the value is addressable, the
+        language takes care of the common case of invoking a pointer method on a
+        value by inserting the address operator automatically.
+        In our example, the variable <code class="calibre6">b</code> is addressable, so we can call
+        its <code class="calibre6">Write</code> method with just <code class="calibre6">b.Write</code>. The compiler
+        will rewrite that to <code class="calibre6">(&amp;b).Write</code> for us.
+      </p>
+
+      <p class="calibre4">
+        By the way, the idea of using <code class="calibre6">Write</code> on a slice of bytes
+        is central to the implementation of <code class="calibre6">bytes.Buffer</code>.
+      </p>
+
+    </div>
+  </main>
+</body>
+
+</html>
