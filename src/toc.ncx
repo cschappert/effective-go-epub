@@ -16,92 +16,350 @@
         <text>Introduction</text>
       </navLabel>
       <content src="effective_go_split_002.html"/>
+      <navPoint id="num_2" playOrder="2">
+        <navLabel>
+          <text>Examples</text>
+        </navLabel>
+        <content src="effective_go_split_002.html#examples"/>
+      </navPoint>
     </navPoint>
-    <navPoint id="num_2" playOrder="2">
+    <navPoint id="num_3" playOrder="3">
       <navLabel>
         <text>Formatting</text>
       </navLabel>
       <content src="effective_go_split_003.html"/>
     </navPoint>
-    <navPoint id="num_3" playOrder="3">
+    <navPoint id="num_4" playOrder="4">
       <navLabel>
         <text>Commentary</text>
       </navLabel>
       <content src="effective_go_split_004.html"/>
     </navPoint>
-    <navPoint id="num_4" playOrder="4">
+    <navPoint id="num_5" playOrder="5">
       <navLabel>
         <text>Names</text>
       </navLabel>
       <content src="effective_go_split_005.html"/>
+      <navPoint id="num_6" playOrder="6">
+        <navLabel>
+          <text>Package names</text>
+        </navLabel>
+        <content src="effective_go_split_005.html#package-names"/>
+      </navPoint>
+      <navPoint id="num_7" playOrder="7">
+        <navLabel>
+          <text>Getters</text>
+        </navLabel>
+        <content src="effective_go_split_005.html#Getters"/>
+      </navPoint>
+      <navPoint id="num_8" playOrder="8">
+        <navLabel>
+          <text>Interface names</text>
+        </navLabel>
+        <content src="effective_go_split_005.html#interface-names"/>
+      </navPoint>
+      <navPoint id="num_9" playOrder="9">
+        <navLabel>
+          <text>MixedCaps</text>
+        </navLabel>
+        <content src="effective_go_split_005.html#mixed-caps"/>
+      </navPoint>
     </navPoint>
-    <navPoint id="num_5" playOrder="5">
+    <navPoint id="num_10" playOrder="10">
       <navLabel>
         <text>Semicolons</text>
       </navLabel>
       <content src="effective_go_split_006.html"/>
     </navPoint>
-    <navPoint id="num_6" playOrder="6">
+    <navPoint id="num_11" playOrder="11">
       <navLabel>
         <text>Control structures</text>
       </navLabel>
       <content src="effective_go_split_007.html"/>
+      <navPoint id="num_12" playOrder="12">
+        <navLabel>
+          <text>If</text>
+        </navLabel>
+        <content src="effective_go_split_007.html#if"/>
+      </navPoint>
+      <navPoint id="num_13" playOrder="13">
+        <navLabel>
+          <text>Redeclaration and reassignment</text>
+        </navLabel>
+        <content src="effective_go_split_007.html#redeclaration"/>
+      </navPoint>
+      <navPoint id="num_14" playOrder="14">
+        <navLabel>
+          <text>For</text>
+        </navLabel>
+        <content src="effective_go_split_007.html#for"/>
+      </navPoint>
+      <navPoint id="num_15" playOrder="15">
+        <navLabel>
+          <text>Switch</text>
+        </navLabel>
+        <content src="effective_go_split_007.html#switch"/>
+      </navPoint>
+      <navPoint id="num_16" playOrder="16">
+        <navLabel>
+          <text>Type switch</text>
+        </navLabel>
+        <content src="effective_go_split_007.html#type_switch"/>
+      </navPoint>
     </navPoint>
-    <navPoint id="num_7" playOrder="7">
+    <navPoint id="num_17" playOrder="17">
       <navLabel>
         <text>Functions</text>
       </navLabel>
       <content src="effective_go_split_008.html"/>
+      <navPoint id="num_18" playOrder="18">
+        <navLabel>
+          <text>Multiple return values</text>
+        </navLabel>
+        <content src="effective_go_split_008.html#multiple-returns"/>
+      </navPoint>
+      <navPoint id="num_19" playOrder="19">
+        <navLabel>
+          <text>Named result parameters</text>
+        </navLabel>
+        <content src="effective_go_split_008.html#named-results"/>
+      </navPoint>
+      <navPoint id="num_20" playOrder="20">
+        <navLabel>
+          <text>Defer</text>
+        </navLabel>
+        <content src="effective_go_split_008.html#defer"/>
+      </navPoint>
     </navPoint>
-    <navPoint id="num_8" playOrder="8">
+    <navPoint id="num_21" playOrder="21">
       <navLabel>
         <text>Data</text>
       </navLabel>
       <content src="effective_go_split_009.html"/>
+      <navPoint id="num_22" playOrder="22">
+        <navLabel>
+          <text>Allocation with new</text>
+        </navLabel>
+        <content src="effective_go_split_009.html#allocation_new"/>
+      </navPoint>
+      <navPoint id="num_23" playOrder="23">
+        <navLabel>
+          <text>Constructors and composite literals</text>
+        </navLabel>
+        <content src="effective_go_split_009.html#composite_literals"/>
+      </navPoint>
+      <navPoint id="num_24" playOrder="24">
+        <navLabel>
+          <text>Allocation with make</text>
+        </navLabel>
+        <content src="effective_go_split_009.html#allocation_make"/>
+      </navPoint>
+      <navPoint id="num_25" playOrder="25">
+        <navLabel>
+          <text>Arrays</text>
+        </navLabel>
+        <content src="effective_go_split_009.html#arrays"/>
+      </navPoint>
+      <navPoint id="num_26" playOrder="26">
+        <navLabel>
+          <text>Slices</text>
+        </navLabel>
+        <content src="effective_go_split_009.html#slices"/>
+      </navPoint>
+      <navPoint id="num_27" playOrder="27">
+        <navLabel>
+          <text>Two-dimensional slices</text>
+        </navLabel>
+        <content src="effective_go_split_009.html#two_dimensional_slices"/>
+      </navPoint>
+      <navPoint id="num_28" playOrder="28">
+        <navLabel>
+          <text>Maps</text>
+        </navLabel>
+        <content src="effective_go_split_009.html#maps"/>
+      </navPoint>
+      <navPoint id="num_29" playOrder="29">
+        <navLabel>
+          <text>Printing</text>
+        </navLabel>
+        <content src="effective_go_split_009.html#printing"/>
+      </navPoint>
+      <navPoint id="num_30" playOrder="30">
+        <navLabel>
+          <text>Append</text>
+        </navLabel>
+        <content src="effective_go_split_009.html#append"/>
+      </navPoint>
     </navPoint>
-    <navPoint id="num_9" playOrder="9">
+    <navPoint id="num_31" playOrder="31">
       <navLabel>
         <text>Initialization</text>
       </navLabel>
       <content src="effective_go_split_010.html"/>
+      <navPoint id="num_32" playOrder="32">
+        <navLabel>
+          <text>Constants</text>
+        </navLabel>
+        <content src="effective_go_split_010.html#constants"/>
+      </navPoint>
+      <navPoint id="num_33" playOrder="33">
+        <navLabel>
+          <text>Variables</text>
+        </navLabel>
+        <content src="effective_go_split_010.html#variables"/>
+      </navPoint>
+      <navPoint id="num_34" playOrder="34">
+        <navLabel>
+          <text>The init function</text>
+        </navLabel>
+        <content src="effective_go_split_010.html#init"/>
+      </navPoint>
     </navPoint>
-    <navPoint id="num_10" playOrder="10">
+    <navPoint id="num_35" playOrder="35">
       <navLabel>
         <text>Methods</text>
       </navLabel>
       <content src="effective_go_split_011.html"/>
+      <navPoint id="num_36" playOrder="36">
+        <navLabel>
+          <text>Pointers vs. Values</text>
+        </navLabel>
+        <content src="effective_go_split_011.html#pointers_vs_values"/>
+      </navPoint>
     </navPoint>
-    <navPoint id="num_11" playOrder="11">
+    <navPoint id="num_37" playOrder="37">
       <navLabel>
         <text>Interfaces and other types</text>
       </navLabel>
       <content src="effective_go_split_012.html"/>
+      <navPoint id="num_38" playOrder="38">
+        <navLabel>
+          <text>Interfaces</text>
+        </navLabel>
+        <content src="effective_go_split_012.html#interfaces"/>
+      </navPoint>
+      <navPoint id="num_39" playOrder="39">
+        <navLabel>
+          <text>Conversions</text>
+        </navLabel>
+        <content src="effective_go_split_012.html#conversions"/>
+      </navPoint>
+      <navPoint id="num_40" playOrder="40">
+        <navLabel>
+          <text>Interface conversions and type assertions</text>
+        </navLabel>
+        <content src="effective_go_split_012.html#interface_conversions"/>
+      </navPoint>
+      <navPoint id="num_41" playOrder="41">
+        <navLabel>
+          <text>Generality</text>
+        </navLabel>
+        <content src="effective_go_split_012.html#generality"/>
+      </navPoint>
+      <navPoint id="num_42" playOrder="42">
+        <navLabel>
+          <text>Interfaces and methods</text>
+        </navLabel>
+        <content src="effective_go_split_012.html#interface_methods"/>
+      </navPoint>
     </navPoint>
-    <navPoint id="num_12" playOrder="12">
+    <navPoint id="num_43" playOrder="43">
       <navLabel>
         <text>The blank identifier</text>
       </navLabel>
       <content src="effective_go_split_013.html"/>
+      <navPoint id="num_44" playOrder="44">
+        <navLabel>
+          <text>The blank identifier in multiple assignment</text>
+        </navLabel>
+        <content src="effective_go_split_013.html#blank_assign"/>
+      </navPoint>
+      <navPoint id="num_45" playOrder="45">
+        <navLabel>
+          <text>Unused imports and variables</text>
+        </navLabel>
+        <content src="effective_go_split_013.html#blank_unused"/>
+      </navPoint>
+      <navPoint id="num_46" playOrder="46">
+        <navLabel>
+          <text>Import for side effect</text>
+        </navLabel>
+        <content src="effective_go_split_013.html#blank_import"/>
+      </navPoint>
+      <navPoint id="num_47" playOrder="47">
+        <navLabel>
+          <text>Interface checks</text>
+        </navLabel>
+        <content src="effective_go_split_013.html#blank_implements"/>
+      </navPoint>
     </navPoint>
-    <navPoint id="num_13" playOrder="13">
+    <navPoint id="num_48" playOrder="48">
       <navLabel>
         <text>Embedding</text>
       </navLabel>
       <content src="effective_go_split_014.html"/>
     </navPoint>
-    <navPoint id="num_14" playOrder="14">
+    <navPoint id="num_49" playOrder="49">
       <navLabel>
         <text>Concurrency</text>
       </navLabel>
       <content src="effective_go_split_015.html"/>
+      <navPoint id="num_50" playOrder="50">
+        <navLabel>
+          <text>Share by communicating</text>
+        </navLabel>
+        <content src="effective_go_split_015.html#sharing"/>
+      </navPoint>
+      <navPoint id="num_51" playOrder="51">
+        <navLabel>
+          <text>Goroutines</text>
+        </navLabel>
+        <content src="effective_go_split_015.html#goroutines"/>
+      </navPoint>
+      <navPoint id="num_52" playOrder="52">
+        <navLabel>
+          <text>Channels</text>
+        </navLabel>
+        <content src="effective_go_split_015.html#channels"/>
+      </navPoint>
+      <navPoint id="num_53" playOrder="53">
+        <navLabel>
+          <text>Channels of channels</text>
+        </navLabel>
+        <content src="effective_go_split_015.html#chan_of_chan"/>
+      </navPoint>
+      <navPoint id="num_54" playOrder="54">
+        <navLabel>
+          <text>Parallelization</text>
+        </navLabel>
+        <content src="effective_go_split_015.html#parallel"/>
+      </navPoint>
+      <navPoint id="num_55" playOrder="55">
+        <navLabel>
+          <text>A leaky buffer</text>
+        </navLabel>
+        <content src="effective_go_split_015.html#leaky_buffer"/>
+      </navPoint>
     </navPoint>
-    <navPoint id="num_15" playOrder="15">
+    <navPoint id="num_56" playOrder="56">
       <navLabel>
         <text>Errors</text>
       </navLabel>
       <content src="effective_go_split_016.html"/>
+      <navPoint id="num_57" playOrder="57">
+        <navLabel>
+          <text>Panic</text>
+        </navLabel>
+        <content src="effective_go_split_016.html#panic"/>
+      </navPoint>
+      <navPoint id="num_58" playOrder="58">
+        <navLabel>
+          <text>Recover</text>
+        </navLabel>
+        <content src="effective_go_split_016.html#recover"/>
+      </navPoint>
     </navPoint>
-    <navPoint id="num_16" playOrder="16">
+    <navPoint id="num_59" playOrder="59">
       <navLabel>
         <text>A web server</text>
       </navLabel>
